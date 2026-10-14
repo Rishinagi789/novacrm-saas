@@ -28,7 +28,7 @@ const upload = multer({ dest: uploadDir, limits: { fileSize: 50 * 1024 * 1024 } 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static(uploadDir));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 const uid = (prefix = 'id') => `${prefix}_${crypto.randomBytes(6).toString('hex')}`;
 const addDaysISO = (days, baseDate = new Date()) => {
