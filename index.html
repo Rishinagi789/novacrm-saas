@@ -1,0 +1,2349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NovaCRM — Enterprise CRM & Team HRMS</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f4f6fb;
+  --panel:#ffffff;
+  --panel-2:#f8fafc;
+  --panel-3:#f1f5f9;
+  --border:#e5e9f2;
+  --border-2:#d8dfec;
+  --text:#0f172a;
+  --text-2:#334155;
+  --muted:#64748b;
+  --muted-2:#94a3b8;
+  --primary:#4f46e5;
+  --primary-600:#4338ca;
+  --primary-soft:#eef2ff;
+  --primary-soft-2:#e0e7ff;
+  --success:#0d9488;
+  --success-soft:#ccfbf1;
+  --warn:#d97706;
+  --warn-soft:#fef3c7;
+  --danger:#dc2626;
+  --danger-soft:#fee2e2;
+  --info:#0284c7;
+  --info-soft:#e0f2fe;
+  --radius:12px;
+  --radius-sm:8px;
+  --radius-lg:18px;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.04);
+  --shadow:0 1px 3px rgba(16,24,40,.06),0 10px 24px -16px rgba(16,24,40,.22);
+  --shadow-lg:0 24px 60px -20px rgba(16,24,40,.30);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:var(--sans);color:var(--text);background:var(--bg);font-size:13.3px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:650;letter-spacing:-.01em}
+p{margin:0}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+.hidden{display:none !important}
+.muted{color:var(--muted)}
+.sm{font-size:11.8px}
+.mono{font-variant-numeric:tabular-nums}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:1px solid var(--border-2);background:#fff;color:var(--text-2);
+  padding:7px 13px;border-radius:9px;font-weight:600;font-size:12.8px;cursor:pointer;
+  transition:.15s ease;white-space:nowrap;box-shadow:var(--shadow-sm);
+}
+.btn:hover{background:var(--panel-2);border-color:#c6cfe0}
+.btn svg{width:15px;height:15px}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 6px 16px -8px rgba(79,70,229,.7)}
+.btn-primary:hover{background:var(--primary-600);border-color:var(--primary-600)}
+.btn-ghost{background:transparent;box-shadow:none;border-color:transparent;color:var(--text-2)}
+.btn-ghost:hover{background:var(--panel-3)}
+.btn-danger{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn-success{background:var(--success);border-color:var(--success);color:#fff}
+.btn-sm{padding:5px 10px;font-size:11.8px;border-radius:8px}
+.btn-lg{padding:11px 16px;font-size:14px;border-radius:11px}
+.btn-block{width:100%}
+.icon-btn{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:9px;border:1px solid var(--border);background:#fff;cursor:pointer;color:var(--text-2);transition:.15s
+}
+.icon-btn svg{width:18px;height:18px}
+.icon-btn:hover{background:var(--panel-2)}
+.badge{
+  position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:20px;
+  background:var(--danger);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff
+}
+
+/* Login Screen */
+.login-screen{position:fixed;inset:0;display:flex;z-index:60;background:var(--bg);overflow-y:auto}
+.login-aside{
+  flex:1.05;background:linear-gradient(150deg,#4f46e5 0%,#6366f1 45%,#7c3aed 100%);
+  color:#fff;display:flex;align-items:center;justify-content:center;padding:56px;position:relative;overflow:hidden
+}
+.login-aside-inner{position:relative;z-index:1;max-width:440px}
+.login-aside h1{font-size:38px;margin:18px 0 10px;letter-spacing:-.02em}
+.login-tag{font-size:15.5px;opacity:.92;line-height:1.6}
+.login-features{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:11px}
+.login-features li{display:flex;gap:11px;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);padding:10px 14px;border-radius:11px;font-size:13.5px}
+.login-main{flex:1;display:flex;align-items:center;justify-content:center;padding:32px}
+.login-card{width:100%;max-width:410px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:30px;box-shadow:var(--shadow-lg)}
+.field{display:block;margin:12px 0 0}
+.field>span{display:block;font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:5px}
+input,select,textarea{width:100%;padding:8px 11px;border:1px solid var(--border-2);border-radius:9px;background:#fff;outline:none;transition:.15s}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+textarea{resize:vertical;min-height:70px}
+.logo-mark{width:42px;height:42px;border-radius:12px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px}
+.logo-mark.sm{width:32px;height:32px;border-radius:9px;font-size:15px}
+.logo-mark.lg{width:54px;height:54px;border-radius:15px;font-size:24px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3)}
+
+/* App Shell */
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:232px;flex:0 0 232px;background:#fff;border-right:1px solid var(--border);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;z-index:30
+}
+.sidebar-brand{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.brand-name{font-weight:750;font-size:15px}
+.brand-sub{font-size:11.5px;color:var(--muted-2);font-weight:500}
+.nav{flex:1;overflow-y:auto;padding:10px 10px 16px}
+.nav-label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted-2);font-weight:700;padding:12px 10px 5px}
+.nav-item{
+  width:100%;display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;border:none;background:transparent;
+  color:var(--text-2);font-weight:600;font-size:13px;cursor:pointer;transition:.14s;text-align:left;margin-bottom:2px
+}
+.nav-item svg{width:18px;height:18px;flex:0 0 18px;color:var(--muted)}
+.nav-item:hover{background:var(--panel-2);color:var(--text)}
+.nav-item.active{background:var(--primary-soft);color:var(--primary-600)}
+.nav-item.active svg{color:var(--primary)}
+.nav-count{margin-left:auto;font-style:normal;font-size:11px;font-weight:700;background:var(--panel-3);color:var(--muted);padding:1px 7px;border-radius:20px}
+.nav-item.active .nav-count{background:var(--primary-soft-2);color:var(--primary-600)}
+.sidebar-foot{border-top:1px solid var(--border);padding:12px}
+.user-mini{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.avatar{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12.5px;flex:0 0 32px}
+.user-mini-name{font-weight:650;font-size:12.8px;line-height:1.2}
+.user-mini-role{font-size:11px;color:var(--muted-2);text-transform:capitalize}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:14px
+}
+.topbar-title h1{font-size:17px;line-height:1.2}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.search-wrap{position:relative;display:flex;align-items:center}
+.search-wrap svg{position:absolute;left:10px;width:15px;height:15px;color:var(--muted-2);pointer-events:none}
+.search-wrap input{padding-left:32px;width:220px;background:var(--panel-2);border-color:var(--border)}
+.content{padding:16px 20px;flex:1}
+
+/* Cards & Grid */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.card-pad{padding:15px}
+.card-head{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.card-head h3{font-size:13.8px}
+.card-head .spacer{margin-left:auto}
+.grid{display:grid;gap:14px}
+.g-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g-cal{grid-template-columns:1.6fr 1fr;align-items:start}
+
+/* KPI */
+.kpi{padding:13px 15px;display:flex;flex-direction:column;gap:5px}
+.kpi-top{display:flex;align-items:center;justify-content:space-between}
+.kpi-ico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.kpi-label{font-size:11.8px;color:var(--muted);font-weight:600}
+.kpi-value{font-size:21px;font-weight:750;letter-spacing:-.02em;line-height:1.1}
+.kpi-foot{font-size:11.2px;color:var(--muted);display:flex;align-items:center;gap:5px}
+
+/* Sleek Compact Leads Table */
+.table-wrap{overflow-x:auto}
+table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
+table.tbl th{
+  text-align:left;font-size:10.8px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
+  font-weight:700;padding:8px 10px;background:var(--panel-2);border-bottom:1px solid var(--border);white-space:nowrap
+}
+table.tbl td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+table.tbl tbody tr{transition:.1s}
+table.tbl tbody tr:hover{background:#f5f7ff}
+table.tbl tbody tr.row-selected{background:var(--primary-soft)}
+.company-cell{
+  display:inline-flex;align-items:center;gap:8px;font-weight:700;color:var(--text);
+  cursor:pointer;padding:2px 0;user-select:none
+}
+.company-cell:hover b{color:var(--primary);text-decoration:underline}
+.company-cell .avatar{width:26px;height:26px;flex:0 0 26px;font-size:10.5px;border-radius:6px}
+.chk{width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 14px;border-bottom:1px solid var(--border)}
+.toolbar select,.toolbar input{width:auto;padding:5px 9px;font-size:12px}
+
+/* Compact Color-Coded Stage & Interest Controls */
+.stage-badge{
+  display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
+  padding:2px 8px;border-radius:20px;white-space:nowrap;border:1px solid transparent
+}
+.stage-green{background:#dcfce7;color:#15803d;border-color:#86efac}
+.stage-yellow{background:#fef3c7;color:#b45309;border-color:#fde68a}
+.stage-red{background:#fee2e2;color:#b91c1c;border-color:#fecaca}
+.stage-blue{background:#e0f2fe;color:#0369a1;border-color:#bae6fd}
+
+.compact-select{
+  padding:3px 7px;border-radius:7px;font-size:11.8px;font-weight:650;border:1px solid var(--border-2);
+  background:#fff;cursor:pointer;width:auto;height:27px
+}
+.compact-note-wrap{display:flex;align-items:center;gap:5px}
+.interest-dot-select{
+  width:112px;padding:3px 5px;border-radius:7px;font-size:11.2px;font-weight:700;height:27px;cursor:pointer
+}
+.compact-input{
+  padding:3px 8px;border-radius:7px;font-size:11.8px;border:1px solid var(--border);
+  background:var(--panel-2);height:27px;min-width:135px;flex:1
+}
+.compact-input:focus{background:#fff}
+.compact-date{
+  padding:2px 6px;border-radius:7px;font-size:11.5px;border:1px solid var(--border);
+  background:#fff;height:27px;width:120px
+}
+
+/* Sheet Tabs Selector Bar */
+.sheet-picker-bar{
+  background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:10px 14px;
+  margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap
+}
+
+/* Compact FullCalendar Overrides */
+.fc{font-size:11.8px !important;--fc-border-color:var(--border);--fc-today-bg-color:var(--primary-soft)}
+.fc .fc-toolbar.fc-header-toolbar{margin-bottom:10px !important}
+.fc .fc-toolbar-title{font-size:14.5px !important;font-weight:750}
+.fc .fc-button{padding:4px 9px !important;font-size:11.5px !important;border-radius:7px !important;font-weight:600;text-transform:capitalize}
+.fc .fc-daygrid-day-frame{min-height:54px !important}
+.fc .fc-col-header-cell-cushion{padding:5px 2px !important;font-size:10.5px;text-transform:uppercase;color:var(--muted)}
+.fc .fc-daygrid-day-number{padding:3px 5px !important;font-size:11px;font-weight:600}
+.fc-event{font-size:10.8px !important;padding:1px 4px !important;border-radius:4px !important;cursor:pointer;border:none !important}
+
+/* Notification Bell Popover */
+.notif-pop{
+  position:fixed;top:56px;right:20px;width:360px;max-height:72vh;overflow-y:auto;background:#fff;
+  border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:75
+}
+.notif-head{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:2}
+.notif-item{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:.12s}
+.notif-item:hover{background:var(--panel-2)}
+
+/* Kanban Pipeline */
+.kanban{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 12px;align-items:flex-start}
+.kcol{flex:0 0 265px;background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;max-height:calc(100vh - 165px)}
+.kcol-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.kcol-head .kdot{width:9px;height:9px;border-radius:50%}
+.kcol-head .kcount{margin-left:auto;font-size:11px;font-weight:700;color:var(--muted);background:#fff;border:1px solid var(--border);border-radius:20px;padding:1px 7px}
+.kcol-body{padding:9px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:90px;flex:1}
+.kcard{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;cursor:grab;box-shadow:var(--shadow-sm);transition:.14s}
+.kcard:hover{box-shadow:var(--shadow);border-color:var(--border-2);transform:translateY(-1px)}
+
+/* Right-Side Detail Drawer */
+.drawer-root{position:fixed;inset:0;z-index:55;display:none}
+.drawer-root.open{display:block}
+.drawer-bg{position:absolute;inset:0;background:rgba(15,23,42,.42)}
+.drawer{
+  position:absolute;top:0;right:0;bottom:0;width:min(640px,95vw);background:#fff;box-shadow:var(--shadow-lg);
+  display:flex;flex-direction:column;animation:slideIn .18s ease
+}
+@keyframes slideIn{from{transform:translateX(28px);opacity:.4}to{transform:none;opacity:1}}
+.drawer-head{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}
+.drawer-body{padding:15px 18px;overflow-y:auto;flex:1}
+.drawer-foot{padding:11px 18px;border-top:1px solid var(--border);background:var(--panel-2);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.note-card{background:var(--panel-2);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:9px;padding:9px 12px;margin-bottom:8px}
+
+/* Modals */
+.modal-root{position:fixed;inset:0;z-index:65;display:none}
+.modal-root.open{display:flex;align-items:center;justify-content:center;padding:20px 14px;background:rgba(15,23,42,.45)}
+.modal{background:#fff;border-radius:var(--radius-lg);width:100%;max-width:650px;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)}
+.modal.wide{max-width:1040px}
+.modal-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-body{padding:16px 18px;overflow-y:auto;flex:1}
+.modal-foot{padding:11px 18px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:var(--panel-2);border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.form-grid .full{grid-column:1/-1}
+.map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;background:var(--panel-2);padding:10px;border-radius:10px;border:1px solid var(--border);max-height:185px;overflow-y:auto}
+.map-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
+
+/* Quick Toast */
+.save-toast{
+  position:fixed;top:14px;right:20px;z-index:99;background:#0f172a;color:#fff;
+  padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:var(--shadow-lg)
+}
+
+/* Near-Expiry Small Popup */
+.expiry-popup{
+  position:fixed;bottom:18px;right:18px;z-index:90;width:330px;background:#fff;
+  border:1px solid #fde68a;border-left:5px solid var(--warn);border-radius:12px;
+  padding:13px 15px;box-shadow:var(--shadow-lg)
+}
+</style>
+</head>
+<body>
+
+<!-- ============================ LOGIN SCREEN ============================ -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-aside">
+    <div class="login-aside-inner">
+      <div class="logo-mark lg">N</div>
+      <h1>NovaCRM</h1>
+      <p class="login-tag">Import leads, work the pipeline, close deals — and track every team member's performance.</p>
+      <ul class="login-features">
+        <li><span>📥</span> Multi-Sheet Excel &amp; Google Sheets Import (Choose 1 or Import All Sheets)</li>
+        <li><span>🧩</span> Color-coded stages &amp; drag-and-drop sales pipeline</li>
+        <li><span>⏰</span> Follow-up reminders &amp; compact interactive calendar</li>
+        <li><span>👥</span> Team Email/Link Invites + Working vs Qualified leads + HRMS</li>
+        <li><span>💬</span> WhatsApp &amp; email outreach</li>
+      </ul>
+    </div>
+  </div>
+  <div class="login-main">
+    <div class="login-card">
+      <div style="display:flex;gap:8px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px">
+        <button class="btn btn-sm" style="flex:1" onclick="UI.switchAuth('login')">Sign In</button>
+        <button class="btn btn-sm" style="flex:1" onclick="UI.switchAuth('signup')">Start 7-Day Free Trial</button>
+      </div>
+
+      <form id="loginForm" onsubmit="UI.login(event)" autocomplete="off">
+        <div class="logo-mark sm">N</div>
+        <h2 style="margin-top:12px">Sign in</h2>
+        <p class="muted sm" id="loginSubMsg">Enter your User ID/Email and password.</p>
+        <label class="field">
+          <span>User ID or Email</span>
+          <input id="l_user" type="text" placeholder="Enter User ID or Email" required />
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input id="l_pass" type="password" placeholder="••••••••" required />
+        </label>
+        <button class="btn btn-primary btn-block btn-lg" style="margin-top:18px" type="submit">Sign in</button>
+        <button type="button" class="btn btn-block" style="margin-top:10px" onclick="UI.googleAuthPrompt()">
+          🌐 Continue with Google
+        </button>
+      </form>
+
+      <form id="signupForm" class="hidden" onsubmit="UI.signup(event)">
+        <h2>Create Workspace (7-Day Trial)</h2>
+        <label class="field"><span>Company Name *</span><input id="s_comp" required placeholder="AJ Industries Pvt Ltd" /></label>
+        <label class="field"><span>Full Name *</span><input id="s_name" required placeholder="Your Name" /></label>
+        <label class="field"><span>Work Email *</span><input id="s_email" type="email" required placeholder="you@company.com" /></label>
+        <label class="field"><span>Password *</span><input id="s_pass" type="password" required placeholder="Create password" /></label>
+        <label class="field"><span>Plan</span>
+          <select id="s_plan">
+            <option value="trial_7d">7-Day Free Trial (Free Today)</option>
+            <option value="annual_1yr">1-Year Subscription (₹24,999 / Year)</option>
+          </select>
+        </label>
+        <button class="btn btn-primary btn-block btn-lg" style="margin-top:16px" type="submit">Start Workspace</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ MAIN APP SHELL ============================ -->
+<div id="app" class="app hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-mark sm">N</div>
+      <div class="sb-brand-text">
+        <div class="brand-name">NovaCRM</div>
+        <div class="brand-sub" id="brandCompany">Your Company</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-label">Workspace</div>
+      <button class="nav-item active" data-route="dashboard" onclick="UI.navigate('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" data-route="leads" onclick="UI.navigate('leads')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+        <span>Leads</span><em class="nav-count" id="navLeadCount">0</em>
+      </button>
+      <button class="nav-item" data-route="pipeline" onclick="UI.navigate('pipeline')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.6"/><rect x="9.5" y="4" width="5" height="11" rx="1.6"/><rect x="16" y="4" width="5" height="7" rx="1.6"/></svg>
+        <span>Pipeline</span>
+      </button>
+      <button class="nav-item" data-route="calendar" onclick="UI.navigate('calendar')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        <span>Calendar</span><em class="nav-count" id="navCalCount">0</em>
+      </button>
+      <button class="nav-item" data-route="messages" onclick="UI.navigate('messages')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M21 14.5a2.5 2.5 0 0 1-2.5 2.5H8l-5 4V5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5z"/></svg>
+        <span>Messages</span>
+      </button>
+      <div class="nav-label">Insights</div>
+      <button class="nav-item" data-route="reports" onclick="UI.navigate('reports')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 20h18"/><rect x="5" y="10" width="3.2" height="7" rx="1.2"/><rect x="10.4" y="5" width="3.2" height="12" rx="1.2"/><rect x="15.8" y="13" width="3.2" height="4" rx="1.2"/></svg>
+        <span>Reports</span>
+      </button>
+      <button class="nav-item" data-route="team" onclick="UI.navigate('team')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17.5" cy="9" r="2.5"/><path d="M15.8 20a5.5 5.5 0 0 1 5.7-4.4"/></svg>
+        <span>Team</span><em class="nav-count" id="navTeamCount">0</em>
+      </button>
+      <button class="nav-item" data-route="settings" onclick="UI.navigate('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/></svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-mini">
+        <div class="avatar" id="userAvatar">A</div>
+        <div class="user-mini-text">
+          <div class="user-mini-name" id="sideUserName">—</div>
+          <div class="user-mini-role" id="sideUserRole">—</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm btn-block" onclick="UI.logout()">Sign out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title">
+        <h1 id="pageTitle">Dashboard</h1>
+        <p id="pageSubtitle" class="muted sm">Double-click any Company Name to open full imported details &amp; notes</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <input id="globalSearch" type="search" placeholder="Search company, contact no, notes…" oninput="UI.handleSearch(this.value)" />
+        </div>
+        <button class="btn btn-ghost" onclick="UI.openShareCrmModal()" title="Share CRM Server & Invite Team">
+          🌐 Share CRM
+        </button>
+        <button class="btn btn-ghost" onclick="UI.openImportModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
+          Import
+        </button>
+        <button class="btn btn-primary" onclick="UI.openLeadModal()">+ New lead</button>
+        <button class="icon-btn bell" id="btnBell" onclick="UI.toggleBellPopover(event)" title="Follow-up Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14.5 18 8.5"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/></svg>
+          <span class="badge hidden" id="bellBadge">0</span>
+        </button>
+      </div>
+    </header>
+    <main class="content"><div id="viewRoot"></div></main>
+  </div>
+</div>
+
+<!-- Notification Bell Popover -->
+<div id="notifPop" class="notif-pop hidden"></div>
+
+<!-- Small Near-Expiry Popup (Only shows when <=10 or <=5 days left) -->
+<div id="expiryPopup" class="expiry-popup hidden">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <strong id="expPopTitle">⏳ Subscription Reminder</strong>
+    <button onclick="document.getElementById('expiryPopup').classList.add('hidden')" style="border:none;background:none;cursor:pointer;font-size:16px">×</button>
+  </div>
+  <p id="expPopBody" class="muted sm" style="margin:6px 0 10px"></p>
+  <button class="btn btn-primary btn-sm btn-block" onclick="UI.openPaymentModal()">Renew 1-Year Subscription</button>
+</div>
+
+<div id="saveToast" class="save-toast hidden">✓ Saved</div>
+<div id="modalRoot" class="modal-root"></div>
+<div id="drawerRoot" class="drawer-root"></div>
+
+<script>
+const STAGES = ['New', 'Contacted', 'Qualified', 'Proposal Sent', 'Negotiation', 'Won', 'Lost'];
+const STAGE_COLORS = {
+  'New': { dot: '#0284c7', cls: 'stage-blue' },
+  'Contacted': { dot: '#d97706', cls: 'stage-yellow' },
+  'Qualified': { dot: '#0d9488', cls: 'stage-green' },
+  'Proposal Sent': { dot: '#7c3aed', cls: 'stage-yellow' },
+  'Negotiation': { dot: '#d97706', cls: 'stage-yellow' },
+  'Won': { dot: '#15803d', cls: 'stage-green' },
+  'Lost': { dot: '#dc2626', cls: 'stage-red' }
+};
+
+const INTEREST_OPTIONS = [
+  { val: 'Highly Interested / Top', short: '🟢 Interested', label: '🟢 Highly Interested / Top', cls: 'stage-green' },
+  { val: 'Mid / Follow-up', short: '🟡 Mid / Follow-up', label: '🟡 Mid / Follow-up', cls: 'stage-yellow' },
+  { val: 'Not Interested', short: '🔴 Not Interested', label: '🔴 Not Interested', cls: 'stage-red' }
+];
+
+const CLASSIFY_FIELDS = [
+  { key: 'ignore', label: '— Keep Inside Details Only —' },
+  { key: 'company', label: '🏢 Company Name (e.g. AJ Industries)' },
+  { key: 'name', label: '👤 Contact Person Name' },
+  { key: 'phone', label: '📞 Contact No' },
+  { key: 'stage', label: '🏷️ Stage (New, Qualified, Won...)' },
+  { key: 'talk_summary', label: '📝 Notes' },
+  { key: 'followup_date', label: '📅 Follow-up Date' },
+  { key: 'address', label: '📍 Address / City (Inside Details)' },
+  { key: 'links', label: '🔗 Website / Link (Inside Details)' },
+  { key: 'email', label: '✉️ Email (Inside Details)' },
+  { key: 'deal_value', label: '💰 Deal Value (₹)' },
+  { key: 'owner_name', label: '👥 Assigned Team Member' }
+];
+
+const API = {
+  token: localStorage.getItem('nova_jwt') || null,
+  headers() {
+    return { 'Content-Type': 'application/json', ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}) };
+  },
+  async req(url, opts = {}) {
+    const res = await fetch(url, { ...opts, headers: { ...this.headers(), ...(opts.headers || {}) } });
+    const text = await res.text();
+    let data = {};
+    try { data = JSON.parse(text); } catch (e) { throw new Error('Please restart server in VS Code terminal (Ctrl+C then npm start)'); }
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
+};
+
+const UI = {
+  workspace: null,
+  route: 'dashboard',
+  selectedLeadIds: new Set(),
+  currentPageLeads: [],
+  teamMembers: [],
+  leadFilter: { q: '', stage: '', owner: '', page: 1 },
+  currentWorkbook: null,
+  importState: { source: 'Excel', sheetNames: [], selectedSheet: '__ALL__', headers: [], rawRows: [], mapping: {} },
+  hasShownStartupFollowupAlert: false,
+
+  esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s ?? '';
+    return d.innerHTML;
+  },
+
+  initials(name = '') {
+    return String(name).split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2) || 'C';
+  },
+
+  flashSaved(msg = '✓ Saved') {
+    const el = document.getElementById('saveToast');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => el.classList.add('hidden'), 1800);
+  },
+
+  getBestShareBaseUrl() {
+    const customUrl = (this.workspace?.tenant?.public_share_url || '').trim();
+    if (customUrl) return customUrl.replace(/\/+$/, '');
+    const lanUrls = this.workspace?.networkUrls || [];
+    if (lanUrls.length > 0 && window.location.hostname === 'localhost') {
+      return lanUrls[0];
+    }
+    return window.location.origin;
+  },
+
+  getStageBadgeClass(stage, interest) {
+    if (stage === 'Lost' || (interest && interest.includes('Not Interested'))) return 'stage-red';
+    if (stage === 'Won' || stage === 'Qualified' || (interest && interest.includes('Highly'))) return 'stage-green';
+    if (stage === 'New') return 'stage-blue';
+    return 'stage-yellow';
+  },
+
+  getInterestBadgeClass(interest = '') {
+    if (interest.includes('Not Interested')) return 'stage-red';
+    if (interest.includes('Highly')) return 'stage-green';
+    return 'stage-yellow';
+  },
+
+  async init() {
+    // Check Magic Invite Auto-Login URL params (?invite_u=...&invite_p=...)
+    const params = new URLSearchParams(window.location.search);
+    const invU = params.get('invite_u');
+    const invP = params.get('invite_p');
+    if (invU) {
+      document.getElementById('l_user').value = invU;
+      if (invP) document.getElementById('l_pass').value = invP;
+      document.getElementById('loginSubMsg').innerHTML = `<b style="color:var(--primary)">🎉 Team Invite Detected! Click "Sign in" below to enter workspace.</b>`;
+      if (invU && invP && !API.token) {
+        try {
+          const data = await API.req('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ loginId: invU, password: invP })
+          });
+          API.token = data.token;
+          localStorage.setItem('nova_jwt', data.token);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (e) {}
+      }
+    }
+
+    if (!API.token) return;
+    try {
+      await this.refreshWorkspace();
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      this.navigate('dashboard');
+      this.checkTodayFollowupStartupAlert();
+    } catch (e) {
+      this.logout();
+    }
+  },
+
+  switchAuth(mode) {
+    document.getElementById('loginForm').classList.toggle('hidden', mode !== 'login');
+    document.getElementById('signupForm').classList.toggle('hidden', mode !== 'signup');
+  },
+
+  async login(e) {
+    e.preventDefault();
+    try {
+      const data = await API.req('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          loginId: document.getElementById('l_user').value,
+          password: document.getElementById('l_pass').value
+        })
+      });
+      API.token = data.token;
+      localStorage.setItem('nova_jwt', data.token);
+      await this.init();
+    } catch (err) { alert(err.message); }
+  },
+
+  async signup(e) {
+    e.preventDefault();
+    try {
+      const planChoice = document.getElementById('s_plan').value;
+      const data = await API.req('/api/auth/google-or-signup', {
+        method: 'POST',
+        body: JSON.stringify({
+          companyName: document.getElementById('s_comp').value,
+          fullName: document.getElementById('s_name').value,
+          email: document.getElementById('s_email').value,
+          password: document.getElementById('s_pass').value,
+          planChoice
+        })
+      });
+      API.token = data.token;
+      localStorage.setItem('nova_jwt', data.token);
+      await this.init();
+      if (data.requirePayment) this.openPaymentModal();
+    } catch (err) { alert(err.message); }
+  },
+
+  async googleAuthPrompt() {
+    const email = prompt('Enter your Google Email:');
+    if (!email) return;
+    const fullName = prompt('Your Full Name:', email.split('@')[0]);
+    const companyName = prompt('Your Company Name:', 'My Company');
+    try {
+      const data = await API.req('/api/auth/google-or-signup', {
+        method: 'POST',
+        body: JSON.stringify({ email, fullName, companyName, googleId: 'google_' + Date.now() })
+      });
+      API.token = data.token;
+      localStorage.setItem('nova_jwt', data.token);
+      await this.init();
+    } catch (err) { alert(err.message); }
+  },
+
+  logout() {
+    localStorage.removeItem('nova_jwt');
+    API.token = null;
+    window.location.href = window.location.pathname;
+  },
+
+  async refreshWorkspace() {
+    this.workspace = await API.req('/api/workspace/status');
+    const { tenant, user, stats, followups } = this.workspace;
+    document.getElementById('brandCompany').textContent = tenant.company_name;
+    document.getElementById('sideUserName').textContent = user.name;
+    document.getElementById('sideUserRole').textContent = user.role;
+    document.getElementById('userAvatar').textContent = this.initials(user.name);
+    document.getElementById('navLeadCount').textContent = (stats.leadCount || 0).toLocaleString();
+    document.getElementById('navTeamCount').textContent = (stats.empCount || 0).toLocaleString();
+    document.getElementById('navCalCount').textContent = (followups || []).length.toLocaleString();
+
+    const bell = document.getElementById('bellBadge');
+    if (followups && followups.length > 0) {
+      bell.textContent = followups.length;
+      bell.classList.remove('hidden');
+    } else {
+      bell.classList.add('hidden');
+    }
+
+    const days = tenant.daysLeft;
+    const pop = document.getElementById('expiryPopup');
+    if (days <= 10) {
+      pop.classList.remove('hidden');
+      document.getElementById('expPopTitle').textContent = days <= 0 ? '🔒 Subscription Expired' : `⏳ ${days} Day(s) Left in Subscription`;
+      document.getElementById('expPopBody').textContent = `Renew your 1-Year Subscription to keep uninterrupted CRM & Team access.`;
+    } else {
+      pop.classList.add('hidden');
+    }
+  },
+
+  /* ==================== TODAY'S FOLLOW-UP NOTIFICATION POPUP & BELL ==================== */
+  checkTodayFollowupStartupAlert() {
+    if (this.hasShownStartupFollowupAlert) return;
+    const followups = this.workspace?.followups || [];
+    if (!followups.length) return;
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const dueTodayOrOverdue = followups.filter(f => (f.followup_date || '').slice(0, 10) <= todayStr);
+
+    if (dueTodayOrOverdue.length > 0) {
+      this.hasShownStartupFollowupAlert = true;
+      this.toggleBellPopover(null, true);
+    }
+  },
+
+  toggleBellPopover(ev, forceOpen = false) {
+    if (ev) ev.stopPropagation();
+    const pop = document.getElementById('notifPop');
+    if (!forceOpen && !pop.classList.contains('hidden')) {
+      pop.classList.add('hidden');
+      return;
+    }
+
+    const followups = this.workspace?.followups || [];
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    pop.classList.remove('hidden');
+    pop.innerHTML = `
+      <div class="notif-head">
+        <b>🔔 Follow-up Reminders (${followups.length})</b>
+        <button class="btn btn-sm" onclick="document.getElementById('notifPop').classList.add('hidden')">✕</button>
+      </div>
+      <div>
+        ${followups.map(f => {
+          const dStr = (f.followup_date || '').slice(0, 10);
+          const isToday = dStr === todayStr;
+          const isOverdue = dStr < todayStr;
+          const badgeCls = isOverdue ? 'stage-red' : isToday ? 'stage-green' : 'stage-yellow';
+          const badgeLabel = isOverdue ? `⚠️ Overdue (${dStr})` : isToday ? `🔥 TODAY (${dStr})` : `📅 ${dStr}`;
+          return `
+            <div class="notif-item" onclick="document.getElementById('notifPop').classList.add('hidden');UI.openLeadDrawer('${f.id}')">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+                <b>${this.esc(f.company || f.name)}</b>
+                <span class="stage-badge ${badgeCls}" style="font-size:10px">${badgeLabel}</span>
+              </div>
+              <div class="muted sm">📞 ${this.esc(f.phone || '—')} • 👤 ${this.esc(f.owner_name || 'Admin')}</div>
+              ${f.talk_summary ? `<div style="font-size:11.5px;color:var(--text-2);margin-top:3px">💬 ${this.esc(f.talk_summary)}</div>` : ''}
+            </div>
+          `;
+        }).join('') || '<div style="padding:24px;text-align:center" class="muted">No pending follow-ups scheduled. Choose a Follow-up Date on any lead!</div>'}
+      </div>
+      <div style="padding:9px 14px;background:var(--panel-2);text-align:center">
+        <button class="btn btn-sm btn-primary btn-block" onclick="document.getElementById('notifPop').classList.add('hidden');UI.navigate('calendar')">Open Follow-up Calendar →</button>
+      </div>
+    `;
+  },
+
+  handleSearch(val) {
+    this.leadFilter.q = val;
+    this.leadFilter.page = 1;
+    if (this.route !== 'leads') this.navigate('leads');
+    else this.renderLeads();
+  },
+
+  navigate(route) {
+    this.route = route;
+    document.getElementById('notifPop')?.classList.add('hidden');
+    document.querySelectorAll('#nav .nav-item').forEach(b => b.classList.toggle('active', b.dataset.route === route));
+    const meta = {
+      dashboard: ['Dashboard', 'Double-click any Company Name to open full imported details, address, links & conversation history'],
+      leads: ['Leads', 'Leads are shown in exact sheet order (First row on top). Changes save automatically.'],
+      pipeline: ['Pipeline', 'Drag and drop deals across stages: New, Contacted, Qualified, Proposal Sent, Negotiation, Won, Lost'],
+      calendar: ['Calendar & Follow-up Schedule', 'Compact view of all scheduled client follow-ups and reminders'],
+      messages: ['Messages', 'Send WhatsApp & Email messages directly to leads or team members'],
+      reports: ['Reports', 'Stage conversion analytics & team performance breakdown'],
+      team: ['Team & HRMS', 'Invite team members via Email/Magic Link, assign leads & view full HRMS profiles'],
+      settings: ['Settings & Sharing', 'Configure CRM sharing URL, Email SMTP & 1-Year subscription billing']
+    };
+    const [t, s] = meta[route] || ['NovaCRM', ''];
+    document.getElementById('pageTitle').textContent = t;
+    document.getElementById('pageSubtitle').textContent = s;
+
+    if (route === 'dashboard') this.renderDashboard();
+    else if (route === 'leads') this.renderLeads();
+    else if (route === 'pipeline') this.renderPipeline();
+    else if (route === 'calendar') this.renderCalendar();
+    else if (route === 'messages') this.renderMessages();
+    else if (route === 'reports') this.renderReports();
+    else if (route === 'team') this.renderTeam();
+    else if (route === 'settings') this.renderSettings();
+  },
+
+  /* ==================== SLEEK COMPACT LEADS TABLE ROW BUILDER ==================== */
+  renderLeadTableRows(leads) {
+    if (!leads || leads.length === 0) {
+      return `<tr><td colspan="7" style="text-align:center;padding:30px" class="muted">No leads found. Click <b>Import</b> or <b>+ New lead</b> in the top bar.</td></tr>`;
+    }
+
+    const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
+    if (!teamOpts.includes(this.workspace?.user?.name)) {
+      teamOpts.unshift(this.workspace?.user?.name || 'Admin');
+    }
+
+    return leads.map(l => {
+      const isSel = this.selectedLeadIds.has(l.id);
+      const stageCls = this.getStageBadgeClass(l.stage, l.interest_level);
+      const intCls = this.getInterestBadgeClass(l.interest_level || '');
+      const companyTitle = l.company || l.name || 'Unnamed Company';
+      const currentOwner = l.owner_name || this.workspace?.user?.name || 'Admin';
+
+      return `
+        <tr class="${isSel ? 'row-selected' : ''}" ondblclick="UI.openLeadDrawer('${l.id}')">
+          <td onclick="event.stopPropagation()" style="width:32px">
+            <input type="checkbox" class="chk" ${isSel ? 'checked' : ''} onchange="UI.toggleSelectLead('${l.id}', this.checked)" />
+          </td>
+          <td>
+            <div class="company-cell" onclick="UI.openLeadDrawer('${l.id}')" title="Click or Double-click to open full details, address, links & conversation history">
+              <div class="avatar">${this.initials(companyTitle)}</div>
+              <b>${this.esc(companyTitle)}</b>
+            </div>
+          </td>
+          <td class="mono" style="font-weight:600;white-space:nowrap">
+            ${this.esc(l.phone || '—')}
+          </td>
+          <td onclick="event.stopPropagation()">
+            <select class="compact-select ${stageCls}" onchange="UI.quickUpdateLead('${l.id}', { stage: this.value }, this)">
+              ${STAGES.map(s => `<option value="${s}" ${l.stage === s ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+          </td>
+          <td onclick="event.stopPropagation()">
+            <div class="compact-note-wrap">
+              <select class="interest-dot-select ${intCls}" onchange="UI.quickUpdateLead('${l.id}', { interest_level: this.value }, this)">
+                ${INTEREST_OPTIONS.map(o => `<option value="${o.val}" ${(l.interest_level || 'Mid / Follow-up') === o.val ? 'selected' : ''}>${o.short}</option>`).join('')}
+              </select>
+              <input class="compact-input" type="text" placeholder="Add note..." value="${this.esc(l.talk_summary || '')}" onchange="UI.quickUpdateLead('${l.id}', { talk_summary: this.value, new_note: this.value })" />
+            </div>
+          </td>
+          <td onclick="event.stopPropagation()" style="white-space:nowrap">
+            <div style="display:flex;align-items:center;gap:5px">
+              <select class="compact-select" onchange="UI.quickUpdateLead('${l.id}', { followup_required: this.value })">
+                <option value="Required" ${(l.followup_required || 'Required') === 'Required' ? 'selected' : ''}>Required</option>
+                <option value="Not Required" ${l.followup_required === 'Not Required' ? 'selected' : ''}>No</option>
+              </select>
+              <input type="date" class="compact-date" value="${this.esc((l.followup_date || '').slice(0, 10))}" onchange="UI.quickUpdateLead('${l.id}', { followup_date: this.value, followup_required: 'Required' })" />
+            </div>
+          </td>
+          <td onclick="event.stopPropagation()">
+            <select class="compact-select" onchange="UI.quickUpdateLead('${l.id}', { owner_name: this.value })">
+              ${teamOpts.map(name => `<option value="${this.esc(name)}" ${currentOwner === name ? 'selected' : ''}>👤 ${this.esc(name)}</option>`).join('')}
+            </select>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  /* ==================== 1. DASHBOARD VIEW ==================== */
+  async renderDashboard() {
+    await this.refreshWorkspace();
+    const { stats, followups } = this.workspace;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayFollowups = (followups || []).filter(f => (f.followup_date || '').slice(0, 10) <= todayStr);
+
+    const root = document.getElementById('viewRoot');
+    root.innerHTML = `
+      ${todayFollowups.length > 0 ? `
+        <div class="card card-pad" style="margin-bottom:14px;background:#fef3c7;border-color:#fde68a;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div>
+            <b style="color:#92400e">🔔 You have ${todayFollowups.length} Follow-up(s) Due Today / Overdue!</b>
+            <span class="sm" style="color:#92400e;margin-left:8px">${todayFollowups.slice(0, 3).map(f => this.esc(f.company || f.name)).join(', ')}</span>
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="UI.toggleBellPopover(event, true)">View Today's Follow-ups</button>
+        </div>
+      ` : ''}
+
+      <div class="grid g-4">
+        <div class="card kpi" onclick="UI.navigate('leads')" style="cursor:pointer">
+          <div class="kpi-top"><span class="kpi-label">Total Leads</span><div class="kpi-ico" style="background:var(--primary-soft);color:var(--primary)">🎯</div></div>
+          <div class="kpi-value">${stats.leadCount.toLocaleString()}</div>
+          <div class="kpi-foot">Click to view all leads →</div>
+        </div>
+        <div class="card kpi" onclick="UI.navigate('pipeline')" style="cursor:pointer">
+          <div class="kpi-top"><span class="kpi-label">Qualified &amp; Active</span><div class="kpi-ico" style="background:var(--info-soft);color:var(--info)">⚡</div></div>
+          <div class="kpi-value">${(stats.qualifiedCount || 0).toLocaleString()}</div>
+          <div class="kpi-foot">Pipeline Value: ₹${Number(stats.totalValue || 0).toLocaleString('en-IN')}</div>
+        </div>
+        <div class="card kpi" onclick="UI.navigate('calendar')" style="cursor:pointer">
+          <div class="kpi-top"><span class="kpi-label">Scheduled Follow-ups</span><div class="kpi-ico" style="background:var(--warn-soft);color:var(--warn)">⏰</div></div>
+          <div class="kpi-value">${(followups || []).length.toLocaleString()}</div>
+          <div class="kpi-foot">Open Follow-up Calendar →</div>
+        </div>
+        <div class="card kpi" onclick="UI.navigate('team')" style="cursor:pointer">
+          <div class="kpi-top"><span class="kpi-label">Team Members</span><div class="kpi-ico" style="background:var(--success-soft);color:var(--success)">👥</div></div>
+          <div class="kpi-value">${stats.empCount.toLocaleString()}</div>
+          <div class="kpi-foot">Invite team &amp; assign leads →</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="card-head">
+          <h3>Leads Overview (Showing in Exact Sheet Order — First Entry on Top)</h3>
+          <span class="spacer"></span>
+          <button class="btn btn-sm" onclick="UI.openImportModal()">📥 Import</button>
+          <button class="btn btn-sm btn-primary" onclick="UI.navigate('leads')">All Leads (${stats.leadCount.toLocaleString()}) →</button>
+        </div>
+        <div class="table-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:32px"></th>
+                <th>Company Name</th>
+                <th>Contact No</th>
+                <th>Stage</th>
+                <th>Notes</th>
+                <th>Follow-up</th>
+                <th>Assigned To</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${this.renderLeadTableRows(stats.recentLeads || [])}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ==================== 2. COMPACT LEADS SECTION ==================== */
+  async renderLeads() {
+    await this.refreshWorkspace();
+    const f = this.leadFilter;
+    const data = await API.req(`/api/leads?page=${f.page}&limit=50&q=${encodeURIComponent(f.q)}&stage=${encodeURIComponent(f.stage)}&owner=${encodeURIComponent(f.owner)}`);
+    this.currentPageLeads = data.leads || [];
+    const allSel = this.currentPageLeads.length > 0 && this.currentPageLeads.every(l => this.selectedLeadIds.has(l.id));
+    const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
+
+    const root = document.getElementById('viewRoot');
+    root.innerHTML = `
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <button class="btn btn-sm ${f.stage === '' ? 'btn-primary' : ''}" onclick="UI.filterLeadStage('')">All (${data.total.toLocaleString()})</button>
+        ${STAGES.map(s => `<button class="btn btn-sm ${f.stage === s ? 'btn-primary' : ''}" onclick="UI.filterLeadStage('${s}')">${s}</button>`).join('')}
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <input type="search" placeholder="Search company, contact no, notes..." value="${this.esc(f.q)}" oninput="UI.leadFilter.q=this.value;UI.leadFilter.page=1;UI.renderLeads()" style="min-width:230px" />
+          <select onchange="UI.leadFilter.owner=this.value;UI.leadFilter.page=1;UI.renderLeads()">
+            <option value="">👥 All Team Members</option>
+            ${teamOpts.map(name => `<option value="${this.esc(name)}" ${f.owner === name ? 'selected' : ''}>Working: ${this.esc(name)}</option>`).join('')}
+          </select>
+
+          ${this.selectedLeadIds.size > 0 ? `
+            <select class="compact-select" onchange="UI.bulkAssignSelected(this.value)">
+              <option value="">👉 Assign ${this.selectedLeadIds.size} Selected To...</option>
+              ${teamOpts.map(name => `<option value="${this.esc(name)}">${this.esc(name)}</option>`).join('')}
+            </select>
+            <button class="btn btn-sm btn-danger" onclick="UI.deleteSelectedLeads()">🗑️ Delete Selected (${this.selectedLeadIds.size})</button>
+          ` : ''}
+
+          ${data.total > 0 ? `<button class="btn btn-sm btn-danger" style="margin-left:auto" onclick="UI.deleteAllLeads()">🗑️ Delete All (${data.total.toLocaleString()})</button>` : ''}
+        </div>
+
+        <div class="table-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th style="width:32px">
+                  <input type="checkbox" class="chk" ${allSel ? 'checked' : ''} onchange="UI.toggleSelectAllPage(this.checked)" title="Select All on Page" />
+                </th>
+                <th>Company Name</th>
+                <th>Contact No</th>
+                <th>Stage</th>
+                <th>Notes</th>
+                <th>Follow-up</th>
+                <th>Assigned To</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${this.renderLeadTableRows(data.leads)}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card-head" style="border-top:1px solid var(--border);border-bottom:none">
+          <span class="muted sm">Page <b>${data.page}</b> of <b>${data.totalPages}</b> (${data.total.toLocaleString()} leads in exact top-to-bottom sheet order)</span>
+          <span class="spacer"></span>
+          <button class="btn btn-sm" ${data.page <= 1 ? 'disabled' : ''} onclick="UI.leadFilter.page--;UI.renderLeads()">← Prev</button>
+          <button class="btn btn-sm" ${data.page >= data.totalPages ? 'disabled' : ''} onclick="UI.leadFilter.page++;UI.renderLeads()">Next →</button>
+        </div>
+      </div>
+    `;
+  },
+
+  filterLeadStage(stage) {
+    this.leadFilter.stage = stage;
+    this.leadFilter.page = 1;
+    this.renderLeads();
+  },
+
+  async bulkAssignSelected(ownerName) {
+    if (!ownerName) return;
+    await API.req('/api/leads/bulk-assign', {
+      method: 'POST',
+      body: JSON.stringify({ ids: Array.from(this.selectedLeadIds), owner_name: ownerName })
+    });
+    this.selectedLeadIds.clear();
+    this.flashSaved(`✓ Assigned to ${ownerName}`);
+    this.renderLeads();
+  },
+
+  async quickUpdateLead(id, patch, selectEl = null) {
+    try {
+      const res = await API.req(`/api/leads/${id}/quick-update`, {
+        method: 'POST',
+        body: JSON.stringify(patch)
+      });
+      if (selectEl && res.lead) {
+        if (patch.stage) {
+          selectEl.className = `compact-select ${this.getStageBadgeClass(res.lead.stage, res.lead.interest_level)}`;
+        } else if (patch.interest_level) {
+          selectEl.className = `interest-dot-select ${this.getInterestBadgeClass(res.lead.interest_level)}`;
+        }
+      }
+      this.flashSaved('✓ Saved to Database');
+      await this.refreshWorkspace();
+      if (this.route === 'pipeline') this.renderPipeline();
+    } catch (e) {
+      alert('Failed to save update: ' + e.message);
+    }
+  },
+
+  /* ==================== DOUBLE-CLICK COMPANY DRAWER ==================== */
+  async openLeadDrawer(id) {
+    const { lead } = await API.req(`/api/leads/${id}`);
+    if (!lead) return;
+    let history = [];
+    let extraData = {};
+    try { history = JSON.parse(lead.notes_history_json || '[]'); } catch (e) {}
+    try { extraData = JSON.parse(lead.extra_data_json || '{}'); } catch (e) {}
+    const extraKeys = Object.keys(extraData).filter(k => extraData[k] !== '' && extraData[k] !== null);
+
+    const stageCls = this.getStageBadgeClass(lead.stage, lead.interest_level);
+    const intCls = this.getInterestBadgeClass(lead.interest_level || '');
+    const companyTitle = lead.company || lead.name || 'Company Details';
+    const rawLink = (lead.links || '').trim();
+    const safeHref = rawLink ? (/^https?:\/\//i.test(rawLink) ? rawLink : `https://${rawLink}`) : '';
+
+    const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
+    if (!teamOpts.includes(this.workspace?.user?.name)) teamOpts.unshift(this.workspace?.user?.name || 'Admin');
+
+    const dr = document.getElementById('drawerRoot');
+    dr.className = 'drawer-root open';
+    dr.innerHTML = `
+      <div class="drawer-bg" onclick="UI.closeDrawer()"></div>
+      <div class="drawer">
+        <div class="drawer-head">
+          <div class="avatar" style="width:42px;height:42px;font-size:15px">${this.initials(companyTitle)}</div>
+          <div style="flex:1;min-width:0">
+            <h2>${this.esc(companyTitle)}</h2>
+            <div class="muted sm">
+              Assigned To: <b>${this.esc(lead.owner_name || 'Admin')}</b>
+              ${lead.qualified_by ? ` • Qualified/Completed By: <b style="color:var(--success)">${this.esc(lead.qualified_by)}</b>` : ''}
+            </div>
+            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+              <span class="stage-badge ${stageCls}">Stage: ${this.esc(lead.stage)}</span>
+              <span class="stage-badge ${intCls}">${this.esc(lead.interest_level || 'Mid / Follow-up')}</span>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-danger" onclick="UI.deleteLeadFromDrawer('${lead.id}')">🗑️ Delete</button>
+          <button class="btn btn-sm" onclick="UI.closeDrawer()">✕</button>
+        </div>
+
+        <div class="drawer-body">
+          <div class="card card-pad" style="background:var(--panel-2);margin-bottom:13px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+              <h4>✏️ Company Details, Address &amp; Website</h4>
+              <button class="btn btn-primary btn-sm" onclick="UI.saveDrawerEdits('${lead.id}')">💾 Save Changes</button>
+            </div>
+            <div class="form-grid">
+              <label><span>Company Name</span><input id="dr_company" value="${this.esc(lead.company || '')}" /></label>
+              <label><span>Contact Person</span><input id="dr_name" value="${this.esc(lead.name || '')}" /></label>
+              <label><span>Contact No</span><input id="dr_phone" value="${this.esc(lead.phone || '')}" /></label>
+              <label><span>Email</span><input id="dr_email" value="${this.esc(lead.email || '')}" /></label>
+              <label><span>Assigned Team Member</span>
+                <select id="dr_owner">
+                  ${teamOpts.map(n => `<option value="${this.esc(n)}" ${lead.owner_name === n ? 'selected' : ''}>${this.esc(n)}</option>`).join('')}
+                </select>
+              </label>
+              <label><span>Deal Value (₹)</span><input id="dr_val" type="number" value="${Number(lead.deal_value || 0)}" /></label>
+              <label><span>Follow-up</span>
+                <select id="dr_freq">
+                  <option value="Required" ${(lead.followup_required || 'Required') === 'Required' ? 'selected' : ''}>Required</option>
+                  <option value="Not Required" ${lead.followup_required === 'Not Required' ? 'selected' : ''}>Not Required</option>
+                </select>
+              </label>
+              <label><span>Follow-up Date</span><input id="dr_fdate" type="date" value="${this.esc((lead.followup_date || '').slice(0, 10))}" /></label>
+              <label class="full"><span>Full Address / Location</span><input id="dr_addr" value="${this.esc(lead.address || '')}" placeholder="Full factory / office address..." /></label>
+              <label class="full">
+                <span>Website / Link ${safeHref ? `<a href="${this.esc(safeHref)}" target="_blank" style="margin-left:8px;color:var(--primary);font-weight:700">🔗 Open Link ↗</a>` : ''}</span>
+                <input id="dr_links" value="${this.esc(lead.links || '')}" placeholder="https://..." />
+              </label>
+            </div>
+          </div>
+
+          ${extraKeys.length > 0 ? `
+            <div class="card card-pad" style="margin-bottom:13px">
+              <h4 style="margin-bottom:8px">📋 All Imported Sheet Columns (${extraKeys.length})</h4>
+              <div class="form-grid sm">
+                ${extraKeys.map(k => `
+                  <div style="padding:5px 8px;background:var(--panel-2);border-radius:7px;border:1px solid var(--border)">
+                    <small class="muted" style="display:block;font-size:10px;text-transform:uppercase">${this.esc(k)}</small>
+                    <b>${this.esc(extraData[k])}</b>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="card card-pad" style="margin-bottom:13px">
+            <h4 style="margin-bottom:7px">💬 Add New Note / Call Discussion</h4>
+            <textarea id="dr_new_note" placeholder="Write what was discussed with the client today..."></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:7px">
+              <button class="btn btn-primary btn-sm" onclick="UI.addNoteInDrawer('${lead.id}')">+ Add Note</button>
+            </div>
+          </div>
+
+          <h4 style="margin-bottom:8px">📜 Complete Notes History (${history.length})</h4>
+          <div>
+            ${history.map(n => `
+              <div class="note-card">
+                <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                  <span class="stage-badge ${this.getStageBadgeClass(n.stage, n.interest)}" style="font-size:10px;padding:1px 7px">${this.esc(n.stage || 'Note')} • ${this.esc(n.author || 'Team')}</span>
+                  <small class="muted">${new Date(n.at).toLocaleString()}</small>
+                </div>
+                <p style="font-size:12.8px;white-space:pre-wrap">${this.esc(n.text)}</p>
+              </div>
+            `).join('') || `<div class="note-card"><p>${this.esc(lead.talk_summary || lead.notes || 'No conversation notes recorded yet.')}</p></div>`}
+          </div>
+        </div>
+
+        <div class="drawer-foot">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%">
+            <div>
+              <small class="muted" style="display:block;font-size:10px;font-weight:700">STAGE</small>
+              <select class="compact-select ${stageCls}" onchange="UI.updateDrawerStageOrInterest('${lead.id}', { stage: this.value })">
+                ${STAGES.map(s => `<option value="${s}" ${lead.stage === s ? 'selected' : ''}>${s}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <small class="muted" style="display:block;font-size:10px;font-weight:700">STATUS COLOR</small>
+              <select class="compact-select ${intCls}" onchange="UI.updateDrawerStageOrInterest('${lead.id}', { interest_level: this.value })">
+                ${INTEREST_OPTIONS.map(o => `<option value="${o.val}" ${(lead.interest_level || 'Mid / Follow-up') === o.val ? 'selected' : ''}>${o.label}</option>`).join('')}
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="UI.closeDrawer()">Done</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  async saveDrawerEdits(leadId) {
+    await this.quickUpdateLead(leadId, {
+      company: document.getElementById('dr_company').value,
+      name: document.getElementById('dr_name').value,
+      phone: document.getElementById('dr_phone').value,
+      email: document.getElementById('dr_email').value,
+      owner_name: document.getElementById('dr_owner').value,
+      deal_value: document.getElementById('dr_val').value,
+      followup_required: document.getElementById('dr_freq').value,
+      followup_date: document.getElementById('dr_fdate').value,
+      address: document.getElementById('dr_addr').value,
+      links: document.getElementById('dr_links').value
+    });
+    this.openLeadDrawer(leadId);
+    if (this.route === 'dashboard') this.renderDashboard();
+    else if (this.route === 'leads') this.renderLeads();
+  },
+
+  async deleteLeadFromDrawer(leadId) {
+    if (!confirm('Delete this lead permanently?')) return;
+    await API.req(`/api/leads/${leadId}`, { method: 'DELETE' });
+    this.closeDrawer();
+    await this.refreshWorkspace();
+    if (this.route === 'dashboard') this.renderDashboard();
+    else this.renderLeads();
+  },
+
+  async addNoteInDrawer(leadId) {
+    const text = document.getElementById('dr_new_note').value.trim();
+    if (!text) return alert('Please write a note first.');
+    await this.quickUpdateLead(leadId, { new_note: text, talk_summary: text });
+    this.openLeadDrawer(leadId);
+    if (this.route === 'dashboard') this.renderDashboard();
+    else if (this.route === 'leads') this.renderLeads();
+  },
+
+  async updateDrawerStageOrInterest(leadId, patch) {
+    await this.quickUpdateLead(leadId, patch);
+    this.openLeadDrawer(leadId);
+    if (this.route === 'dashboard') this.renderDashboard();
+    else if (this.route === 'leads') this.renderLeads();
+  },
+
+  closeDrawer() {
+    document.getElementById('drawerRoot').className = 'drawer-root';
+  },
+
+  /* ==================== 3. PIPELINE KANBAN VIEW ==================== */
+  async renderPipeline() {
+    const data = await API.req('/api/leads?page=1&limit=500');
+    const leads = data.leads || [];
+    const root = document.getElementById('viewRoot');
+
+    root.innerHTML = `
+      <div class="kanban">
+        ${STAGES.map(stage => {
+          const items = leads.filter(l => l.stage === stage);
+          const sum = items.reduce((s, l) => s + Number(l.deal_value || 0), 0);
+          const sc = STAGE_COLORS[stage] || { dot: '#4f46e5', cls: 'stage-blue' };
+          return `
+            <div class="kcol" ondragover="event.preventDefault()" ondrop="UI.onDropStage(event, '${stage}')">
+              <div class="kcol-head">
+                <span class="kdot" style="background:${sc.dot}"></span>
+                <b>${stage}</b>
+                <span class="kcount">${items.length}</span>
+              </div>
+              <div style="padding:4px 12px;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border)">
+                Total: <b class="mono">₹${sum.toLocaleString('en-IN')}</b>
+              </div>
+              <div class="kcol-body">
+                ${items.map(l => `
+                  <div class="kcard" draggable="true" ondragstart="event.dataTransfer.setData('text/plain','${l.id}')" onclick="UI.openLeadDrawer('${l.id}')">
+                    <b>${this.esc(l.company || l.name)}</b>
+                    <div class="muted sm">${this.esc(l.phone || '—')} • 👤 ${this.esc(l.owner_name || 'Admin')}</div>
+                    ${l.talk_summary ? `<p style="font-size:11.2px;color:var(--text-2);margin-top:5px;background:var(--panel-2);padding:4px 7px;border-radius:6px">${this.esc(l.talk_summary)}</p>` : ''}
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+                      <span class="stage-badge ${this.getInterestBadgeClass(l.interest_level || '')}" style="font-size:10px;padding:1px 6px">${this.esc(l.interest_level || 'Mid')}</span>
+                      <small class="muted">${this.esc((l.followup_date || '').slice(0, 10))}</small>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  },
+
+  async onDropStage(ev, newStage) {
+    const id = ev.dataTransfer.getData('text/plain');
+    if (!id) return;
+    await this.quickUpdateLead(id, { stage: newStage });
+  },
+
+  /* ==================== 4. COMPACT SPLIT CALENDAR & FOLLOW-UPS VIEW ==================== */
+  async renderCalendar() {
+    const data = await API.req('/api/calendar');
+    const leadFollowups = data.leadFollowups || [];
+    const customEvents = data.events || [];
+    const todayStr = new Date().toISOString().slice(0, 10);
+
+    const root = document.getElementById('viewRoot');
+    root.innerHTML = `
+      <div class="grid g-cal">
+        <div class="card card-pad">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <h3>📅 Follow-up Calendar</h3>
+            <button class="btn btn-primary btn-sm" onclick="UI.promptCalendarEvent()">+ Add Reminder</button>
+          </div>
+          <div id="fcBox"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>⏰ Scheduled Follow-ups (${leadFollowups.length})</h3>
+          </div>
+          <div class="card-pad" style="max-height:460px;overflow-y:auto">
+            ${leadFollowups.map(f => {
+              const dStr = (f.followup_date || '').slice(0, 10);
+              const isToday = dStr === todayStr;
+              const isOverdue = dStr < todayStr;
+              const badgeCls = isOverdue ? 'stage-red' : isToday ? 'stage-green' : 'stage-yellow';
+              const badgeText = isOverdue ? `Overdue (${dStr})` : isToday ? `Today (${dStr})` : dStr;
+              return `
+                <div style="padding:9px 10px;border:1px solid var(--border);border-radius:9px;margin-bottom:8px;cursor:pointer;background:${isToday ? '#f0fdf4' : '#fff'}" onclick="UI.openLeadDrawer('${f.id}')">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <b>${this.esc(f.company || f.name)}</b>
+                    <span class="stage-badge ${badgeCls}">${badgeText}</span>
+                  </div>
+                  <div class="muted sm" style="margin-top:3px">📞 ${this.esc(f.phone || '—')} • 👤 ${this.esc(f.owner_name || 'Admin')}</div>
+                  ${f.talk_summary ? `<div style="font-size:11.5px;color:var(--text-2);margin-top:4px">📝 ${this.esc(f.talk_summary)}</div>` : ''}
+                </div>
+              `;
+            }).join('') || '<p class="muted sm" style="text-align:center;padding:24px">No follow-ups scheduled yet. Choose a Follow-up Date on any lead in the Leads table!</p>'}
+          </div>
+        </div>
+      </div>
+    `;
+
+    const combinedEvents = [
+      ...leadFollowups.map(f => ({
+        id: 'lead_' + f.id,
+        title: `📞 ${f.company || f.name}`,
+        start: (f.followup_date || '').slice(0, 10),
+        backgroundColor: (f.followup_date || '').slice(0, 10) < todayStr ? '#dc2626' : (f.followup_date || '').slice(0, 10) === todayStr ? '#0d9488' : '#4f46e5',
+        extendedProps: { leadId: f.id }
+      })),
+      ...customEvents.filter(e => !e.lead_id).map(e => ({
+        id: e.id,
+        title: e.title,
+        start: e.start_at,
+        backgroundColor: '#7c3aed'
+      }))
+    ];
+
+    const cal = new FullCalendar.Calendar(document.getElementById('fcBox'), {
+      initialView: 'dayGridMonth',
+      height: 430,
+      headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listWeek' },
+      dateClick: (info) => this.promptCalendarEvent(info.dateStr),
+      eventClick: (info) => {
+        const leadId = info.event.extendedProps?.leadId;
+        if (leadId) this.openLeadDrawer(leadId);
+      },
+      events: combinedEvents
+    });
+    cal.render();
+  },
+
+  async promptCalendarEvent(dateStr = new Date().toISOString().slice(0, 10)) {
+    const title = prompt('Reminder / Follow-up Title (e.g. Call AJ Industries):');
+    if (!title) return;
+    const start_at = prompt('Date (YYYY-MM-DD):', dateStr);
+    if (!start_at) return;
+    await API.req('/api/calendar', { method: 'POST', body: JSON.stringify({ title, start_at }) });
+    await this.refreshWorkspace();
+    this.renderCalendar();
+  },
+
+  /* ==================== 5. MESSAGES VIEW ==================== */
+  async renderMessages() {
+    const data = await API.req('/api/messages');
+    const leadsList = (this.workspace?.stats?.recentLeads || []);
+    const root = document.getElementById('viewRoot');
+
+    root.innerHTML = `
+      <div class="grid g-2">
+        <div class="card card-pad">
+          <h3>💬 WhatsApp &amp; Email Outreach</h3>
+          <label class="field">
+            <span>Quick Select Lead</span>
+            <select onchange="UI.fillMessageLead(this.value)">
+              <option value="">— Select a lead or type manually —</option>
+              ${leadsList.map(l => `<option value="${this.esc(l.company || l.name)}||${this.esc(l.phone || l.email || '')}">${this.esc(l.company || l.name)} (${this.esc(l.phone || '')})</option>`).join('')}
+            </select>
+          </label>
+          <label class="field"><span>Company / Person Name *</span><input id="m_lead" placeholder="AJ Industries" /></label>
+          <label class="field"><span>Mobile No or Email *</span><input id="m_to" placeholder="9876543210 or email@company.com" /></label>
+          <label class="field"><span>Channel</span>
+            <select id="m_chan">
+              <option value="WhatsApp">💬 WhatsApp Direct</option>
+              <option value="Email">✉️ Email (Gmail / Default Client)</option>
+            </select>
+          </label>
+          <label class="field"><span>Message *</span>
+            <textarea id="m_body">Hello, greetings from ${this.esc(this.workspace?.tenant?.company_name || 'our team')}! Following up regarding our discussion. Please let us know a convenient time to connect.</textarea>
+          </label>
+          <button class="btn btn-primary" style="margin-top:12px" onclick="UI.sendMessage()">🚀 Send &amp; Log Message</button>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>Sent Messages Log (${(data.messages || []).length})</h3></div>
+          <div class="card-pad" style="max-height:420px;overflow-y:auto">
+            ${(data.messages || []).map(m => `
+              <div style="padding:9px 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between">
+                  <b>[${this.esc(m.channel)}] ${this.esc(m.lead_name || m.recipient)} (${this.esc(m.recipient)})</b>
+                  <small class="muted">${new Date(m.sent_at).toLocaleString()}</small>
+                </div>
+                <p class="muted sm" style="margin-top:3px">${this.esc(m.body)}</p>
+              </div>
+            `).join('') || '<p class="muted sm">No messages sent yet.</p>'}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  fillMessageLead(val) {
+    if (!val) return;
+    const [name, contact] = val.split('||');
+    document.getElementById('m_lead').value = name || '';
+    document.getElementById('m_to').value = contact || '';
+  },
+
+  async sendMessage() {
+    const lead_name = document.getElementById('m_lead').value.trim();
+    const recipient = document.getElementById('m_to').value.trim();
+    const channel = document.getElementById('m_chan').value;
+    const body = document.getElementById('m_body').value.trim();
+    if (!recipient || !body) return alert('Enter recipient mobile/email and message');
+
+    const res = await API.req('/api/messages', {
+      method: 'POST',
+      body: JSON.stringify({ lead_name, recipient, channel, body })
+    });
+
+    if (channel === 'WhatsApp') {
+      let digits = recipient.replace(/\D/g, '');
+      if (digits.length === 10) digits = '91' + digits;
+      window.open(`https://wa.me/${digits}?text=${encodeURIComponent(body)}`, '_blank');
+    } else if (!res.emailSentViaSmtp) {
+      window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${encodeURIComponent('Follow-up: ' + (lead_name || 'Discussion'))}&body=${encodeURIComponent(body)}`, '_blank');
+    } else {
+      alert('Email sent directly via SMTP!');
+    }
+    this.renderMessages();
+  },
+
+  /* ==================== 6. REPORTS VIEW ==================== */
+  async renderReports() {
+    await this.refreshWorkspace();
+    const { stats } = this.workspace;
+    const root = document.getElementById('viewRoot');
+    root.innerHTML = `
+      <div class="grid g-2">
+        <div class="card">
+          <div class="card-head"><h3>Leads by Stage</h3></div>
+          <div class="card-pad" style="height:260px"><canvas id="repStageChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Leads by Source</h3></div>
+          <div class="card-pad" style="height:260px"><canvas id="repSourceChart"></canvas></div>
+        </div>
+      </div>
+    `;
+    setTimeout(() => {
+      const sb = stats.stageBreakdown || [];
+      new Chart(document.getElementById('repStageChart'), {
+        type: 'bar',
+        data: {
+          labels: STAGES,
+          datasets: [{ label: 'Leads', data: STAGES.map(s => (sb.find(x => x.stage === s) || {}).count || 0), backgroundColor: '#4f46e5', borderRadius: 8 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+      const src = stats.sourceBreakdown || [];
+      new Chart(document.getElementById('repSourceChart'), {
+        type: 'doughnut',
+        data: {
+          labels: src.map(x => x.source || 'Direct'),
+          datasets: [{ data: src.map(x => x.count), backgroundColor: ['#4f46e5', '#0d9488', '#d97706', '#0284c7', '#7c3aed'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+    }, 50);
+  },
+
+  /* ==================== 7. TEAM + EMAIL/LINK INVITE ACCESS + HRMS PROFILE ==================== */
+  async renderTeam() {
+    await this.refreshWorkspace();
+    const data = await API.req('/api/team');
+    this.teamMembers = data.employees || [];
+    const shareUrl = this.getBestShareBaseUrl();
+    const root = document.getElementById('viewRoot');
+
+    root.innerHTML = `
+      <!-- Live CRM Sharing & Invite Banner -->
+      <div class="card card-pad" style="margin-bottom:14px;background:var(--primary-soft);border-color:var(--primary-soft-2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <b style="color:var(--primary-600)">🌐 Team Server Access Link: <code class="mono">${this.esc(shareUrl)}</code></b>
+          <div class="muted sm">Team members on your Wi-Fi/LAN can open this URL directly, or click "Configure Public Internet Link" to share across any city/network.</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm" onclick="UI.openShareCrmModal()">⚙️ Configure Public Internet Link / SMTP Email</button>
+          <button class="btn btn-sm btn-primary" onclick="UI.openTeamModal()">➕ Invite Team Member (Create Login &amp; Send Email)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h3>👥 Team Members, Access Invites &amp; HRMS Profiles (${this.teamMembers.length})</h3>
+            <p class="muted sm">Click "📩 Send Invite (Email / Link)" to send 1-click auto-login link &amp; ID/Password via Email or WhatsApp</p>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Team Member</th>
+                <th>Login ID &amp; Invite Link</th>
+                <th>Role &amp; Dept</th>
+                <th>Working On</th>
+                <th>Qualified</th>
+                <th>Completed (Won)</th>
+                <th>HRMS Profile &amp; Docs</th>
+                <th style="text-align:right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${this.teamMembers.map(m => `
+                <tr onclick="UI.openTeamMemberDrawer('${m.id}')" style="cursor:pointer">
+                  <td>
+                    <div class="company-cell">
+                      <div class="avatar">${this.initials(m.full_name)}</div>
+                      <div>
+                        <b>${this.esc(m.full_name)}</b>
+                        <small class="muted mono" style="display:block;font-weight:500">${this.esc(m.emp_code)} • ${this.esc(m.phone || m.email || '')}</small>
+                      </div>
+                    </div>
+                  </td>
+                  <td onclick="event.stopPropagation()">
+                    <code class="mono" style="background:var(--panel-3);padding:2px 6px;border-radius:5px">${this.esc(m.login_username || m.email)}</code>
+                    <button class="btn btn-sm btn-primary" style="margin-left:6px;padding:3px 9px" onclick="UI.openInviteShareModal('${m.id}')">📩 Send Invite (Email / Link)</button>
+                  </td>
+                  <td><b>${this.esc(m.designation)}</b><br><small class="muted">${this.esc(m.department)}</small></td>
+                  <td><span class="stage-badge stage-yellow">🔨 ${m.metrics.workingCount} Working</span></td>
+                  <td><span class="stage-badge stage-blue">⚡ ${m.metrics.qualifiedCount} Qualified</span></td>
+                  <td><span class="stage-badge stage-green">🏆 ${m.metrics.completedCount} Won</span></td>
+                  <td>
+                    <span class="stage-badge" style="background:var(--panel-3);color:var(--text-2)">${(m.previous_companies || []).length} Past Cos • ${(m.documents || []).length} Docs</span>
+                  </td>
+                  <td style="text-align:right" onclick="event.stopPropagation()">
+                    <button class="btn btn-sm" onclick="UI.openTeamMemberDrawer('${m.id}')">Open HRMS &amp; Leads</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ==================== DEDICATED INVITE & SHARE ACCESS MODAL (EMAIL + GMAIL + WHATSAPP + MAGIC AUTO-LOGIN LINK) ==================== */
+  openInviteShareModal(empId) {
+    const m = this.teamMembers.find(x => x.id === empId);
+    if (!m) return;
+    const baseUrl = this.getBestShareBaseUrl();
+    const loginId = m.login_username || m.email;
+    const pass = m.login_password_hint || 'team123';
+    const magicLink = `${baseUrl}/?invite_u=${encodeURIComponent(loginId)}&invite_p=${encodeURIComponent(pass)}`;
+
+    const subject = `Invitation to join ${this.workspace?.tenant?.company_name || 'NovaCRM'} Workspace`;
+    const bodyText = `Hello ${m.full_name},\n\nYou have been invited to access the ${this.workspace?.tenant?.company_name || 'NovaCRM'} CRM & HRMS Workspace.\n\n🚀 1-Click Direct Auto-Login Link:\n${magicLink}\n\nOr sign in manually at: ${baseUrl}\n👤 Login User ID: ${loginId}\n🔑 Password: ${pass}\n\nWelcome to the team!`;
+
+    const root = document.getElementById('modalRoot');
+    root.className = 'modal-root open';
+    root.innerHTML = `
+      <div class="modal">
+        <div class="modal-head">
+          <h3>📩 Send Team Access Invite to ${this.esc(m.full_name)}</h3>
+          <button class="btn btn-sm" onclick="UI.closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="background:var(--primary-soft);border:1px solid var(--primary-soft-2);padding:12px;border-radius:10px;margin-bottom:12px">
+            <small class="muted" style="font-weight:700;display:block">🔗 1-CLICK MAGIC AUTO-LOGIN LINK (Auto-fills ID &amp; Password):</small>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <input id="inv_magic_link" class="mono" value="${this.esc(magicLink)}" readonly />
+              <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('inv_magic_link').value);UI.flashSaved('✓ Magic Link Copied!')">Copy Link</button>
+            </div>
+          </div>
+
+          <div class="form-grid" style="margin-bottom:12px">
+            <label><span>Member Email Address</span><input id="inv_email" value="${this.esc(m.email || '')}" placeholder="member@gmail.com" /></label>
+            <label><span>Member WhatsApp / Mobile</span><input id="inv_phone" value="${this.esc(m.phone || '')}" placeholder="+91 98..." /></label>
+          </div>
+
+          <label class="field">
+            <span>Invitation Email / Message Body (Includes Link, Login ID &amp; Password)</span>
+            <textarea id="inv_body" style="min-height:140px">${this.esc(bodyText)}</textarea>
+          </label>
+        </div>
+        <div class="modal-foot" style="justify-content:space-between">
+          <button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('inv_body').value);UI.flashSaved('✓ Full Invite Copied!')">📋 Copy Full Text</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="UI.sendInviteViaGmail('${this.esc(subject)}')">✉️ Send via Gmail</button>
+            <button class="btn" onclick="UI.sendInviteViaDefaultMail('${this.esc(subject)}')">📧 Send via Email App / SMTP</button>
+            <button class="btn btn-success" onclick="UI.sendInviteViaWhatsApp()">💬 Send on WhatsApp</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  async sendInviteViaGmail(subject) {
+    const to = document.getElementById('inv_email').value.trim();
+    const body = document.getElementById('inv_body').value;
+    if (!to) return alert('Please enter the team member email address first.');
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+  },
+
+  async sendInviteViaDefaultMail(subject) {
+    const to = document.getElementById('inv_email').value.trim();
+    const body = document.getElementById('inv_body').value;
+    if (!to) return alert('Please enter the team member email address first.');
+    const res = await API.req('/api/messages', {
+      method: 'POST',
+      body: JSON.stringify({ lead_name: 'Team Invite', recipient: to, channel: 'Email', subject, body })
+    });
+    if (res.emailSentViaSmtp) {
+      alert(`Invite email sent directly to ${to}!`);
+      this.closeModal();
+    } else {
+      window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+    }
+  },
+
+  sendInviteViaWhatsApp() {
+    const phone = document.getElementById('inv_phone').value.trim();
+    const body = document.getElementById('inv_body').value;
+    let digits = phone.replace(/\D/g, '');
+    if (digits.length === 10) digits = '91' + digits;
+    const url = digits ? `https://wa.me/${digits}?text=${encodeURIComponent(body)}` : `https://wa.me/?text=${encodeURIComponent(body)}`;
+    window.open(url, '_blank');
+  },
+
+  openShareCrmModal() {
+    const netUrls = this.workspace?.networkUrls || [];
+    const lanUrl = netUrls[0] || window.location.origin;
+    const savedPublicUrl = this.workspace?.tenant?.public_share_url || '';
+    const savedSmtpEmail = this.workspace?.tenant?.smtp_email || '';
+
+    const root = document.getElementById('modalRoot');
+    root.className = 'modal-root open';
+    root.innerHTML = `
+      <form class="modal" onsubmit="UI.saveShareSettings(event)">
+        <div class="modal-head">
+          <h3>🌐 How to Share Your CRM &amp; Invite Team Members</h3>
+          <button type="button" class="btn btn-sm" onclick="UI.closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div style="background:var(--panel-2);padding:12px;border-radius:10px;border:1px solid var(--border);margin-bottom:14px">
+            <b>1. Same Office / Wi-Fi Network Link (Zero Setup Required):</b>
+            <p class="muted sm" style="margin:4px 0 8px">Anyone connected to your same Wi-Fi or Office LAN can open this link right now on their laptop or phone:</p>
+            <div style="display:flex;gap:8px">
+              <input value="${this.esc(lanUrl)}" readonly class="mono" />
+              <button type="button" class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText('${this.esc(lanUrl)}');UI.flashSaved('✓ LAN URL Copied!')">Copy</button>
+            </div>
+          </div>
+
+          <div style="background:#f0fdf4;padding:12px;border-radius:10px;border:1px solid #bbf7d0;margin-bottom:14px">
+            <b style="color:#15803d">2. Share Anywhere on the Internet (Different Cities / Remote Team):</b>
+            <p class="muted sm" style="margin:4px 0 8px">To get a free public ` + '`https://...`' + ` link from your PC, open a new terminal in VS Code and run: <code>npx localtunnel --port 4000</code> (or deploy to Render/Railway). Paste that public URL below so all Team Invite emails use it automatically:</p>
+            <input id="sh_public_url" value="${this.esc(savedPublicUrl)}" placeholder="e.g. https://novacrm-team.loca.lt (Leave blank to use LAN URL)" />
+          </div>
+
+          <div style="background:var(--panel-2);padding:12px;border-radius:10px;border:1px solid var(--border)">
+            <b>3. Optional: Direct Automated Gmail SMTP (Send Emails Without Opening Browser Tab):</b>
+            <div class="form-grid" style="margin-top:8px">
+              <label><span>Your Gmail Address</span><input id="sh_smtp_user" type="email" value="${this.esc(savedSmtpEmail)}" placeholder="yourcompany@gmail.com" /></label>
+              <label><span>Gmail 16-Digit App Password</span><input id="sh_smtp_pass" type="password" placeholder="xxxx xxxx xxxx xxxx" /></label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn" onclick="UI.closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Sharing Settings</button>
+        </div>
+      </form>
+    `;
+  },
+
+  async saveShareSettings(e) {
+    e.preventDefault();
+    await API.req('/api/workspace/share-settings', {
+      method: 'POST',
+      body: JSON.stringify({
+        public_share_url: document.getElementById('sh_public_url').value,
+        smtp_email: document.getElementById('sh_smtp_user').value,
+        smtp_app_password: document.getElementById('sh_smtp_pass').value || undefined
+      })
+    });
+    this.closeModal();
+    this.flashSaved('✓ Sharing Settings Saved!');
+    await this.refreshWorkspace();
+    if (this.route === 'team') this.renderTeam();
+  },
+
+  openTeamMemberDrawer(empId) {
+    const m = this.teamMembers.find(x => x.id === empId);
+    if (!m) return;
+    const dr = document.getElementById('drawerRoot');
+    dr.className = 'drawer-root open';
+    dr.innerHTML = `
+      <div class="drawer-bg" onclick="UI.closeDrawer()"></div>
+      <div class="drawer">
+        <div class="drawer-head">
+          <div class="avatar" style="width:44px;height:44px;font-size:16px">${this.initials(m.full_name)}</div>
+          <div style="flex:1">
+            <h2>${this.esc(m.full_name)} <span class="stage-badge stage-green">${this.esc(m.status)}</span></h2>
+            <div class="muted sm">
+              Login ID: <b>${this.esc(m.login_username || m.email)}</b>
+              ${m.login_password_hint ? ` • Password: <code>${this.esc(m.login_password_hint)}</code>` : ''}
+            </div>
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="UI.openInviteShareModal('${m.id}')">📩 Send Invite</button>
+          <button class="btn btn-sm" onclick="UI.closeDrawer()">✕</button>
+        </div>
+
+        <div class="drawer-body">
+          <div class="grid g-3" style="margin-bottom:13px">
+            <div class="card card-pad" style="background:#fef3c7">
+              <small style="color:#b45309;font-weight:700">WORKING ON LEADS</small>
+              <div style="font-size:21px;font-weight:800;color:#b45309">${m.metrics.workingCount}</div>
+            </div>
+            <div class="card card-pad" style="background:#e0f2fe">
+              <small style="color:#0369a1;font-weight:700">QUALIFIED LEADS</small>
+              <div style="font-size:21px;font-weight:800;color:#0369a1">${m.metrics.qualifiedCount}</div>
+            </div>
+            <div class="card card-pad" style="background:#dcfce7">
+              <small style="color:#15803d;font-weight:700">COMPLETED (WON)</small>
+              <div style="font-size:21px;font-weight:800;color:#15803d">${m.metrics.completedCount}</div>
+            </div>
+          </div>
+
+          <div class="card card-pad" style="margin-bottom:13px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <h4>🎯 Leads Assigned to ${this.esc(m.full_name)} (${m.metrics.assignedLeads.length})</h4>
+              <button class="btn btn-sm" onclick="UI.closeDrawer();UI.leadFilter.owner='${this.esc(m.full_name)}';UI.navigate('leads')">View All in Leads →</button>
+            </div>
+            <div style="max-height:180px;overflow-y:auto">
+              ${m.metrics.assignedLeads.map(l => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="UI.openLeadDrawer('${l.id}')">
+                  <div>
+                    <b>${this.esc(l.company || l.name)}</b> <small class="muted">(${this.esc(l.phone || '—')})</small>
+                    ${l.talk_summary ? `<div class="muted sm">${this.esc(l.talk_summary)}</div>` : ''}
+                  </div>
+                  <span class="stage-badge ${this.getStageBadgeClass(l.stage, l.interest_level)}">${this.esc(l.stage)}</span>
+                </div>
+              `).join('') || '<p class="muted sm">No leads assigned yet. Assign leads from the Leads table dropdown!</p>'}
+            </div>
+          </div>
+
+          <div class="card card-pad" style="margin-bottom:13px;background:var(--panel-2)">
+            <h4 style="margin-bottom:8px">👔 HRMS Employee Profile &amp; Background Details</h4>
+            <div class="form-grid sm">
+              <div><b>Employee Code:</b> ${this.esc(m.emp_code)}</div>
+              <div><b>Role / Dept:</b> ${this.esc(m.designation)} (${this.esc(m.department)})</div>
+              <div><b>Email:</b> ${this.esc(m.email)}</div>
+              <div><b>Phone:</b> ${this.esc(m.phone)}</div>
+              <div><b>Joining Date:</b> ${this.esc(m.joining_date || '—')}</div>
+              <div><b>Monthly Salary:</b> ₹${Number(m.monthly_salary || 0).toLocaleString('en-IN')}</div>
+              <div class="full"><b>Education &amp; Background:</b> ${this.esc(m.education || '—')}</div>
+              <div class="full"><b>Address:</b> ${this.esc(m.address || '—')}</div>
+              <div class="full"><b>Emergency Contact:</b> ${this.esc(m.emergency_contact || '—')}</div>
+              <div class="full"><b>Bank Details:</b> ${this.esc(m.bank_details || '—')}</div>
+            </div>
+          </div>
+
+          <div class="card card-pad" style="margin-bottom:13px">
+            <h4 style="margin-bottom:8px">🏢 Previous Companies History (${(m.previous_companies || []).length})</h4>
+            ${(m.previous_companies || []).map(p => `
+              <div style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+                <b>${this.esc(p.company)}</b> — ${this.esc(p.role)}
+                <div class="muted sm">Tenure: ${this.esc(p.duration)} • Last CTC: ${this.esc(p.ctc)}</div>
+              </div>
+            `).join('') || '<p class="muted sm">No previous companies listed. Click "Edit HRMS & Login" below to add past companies.</p>'}
+          </div>
+
+          <div class="card card-pad">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <h4>📂 HRMS Uploaded Documents (${(m.documents || []).length})</h4>
+              <label class="btn btn-sm btn-primary" style="cursor:pointer">
+                📤 Upload Document
+                <input type="file" style="display:none" onchange="UI.uploadTeamDoc(event, '${m.id}')" />
+              </label>
+            </div>
+            ${(m.documents || []).map(d => `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+                <a href="${d.fileUrl}" target="_blank" style="font-weight:600;color:var(--primary)">📄 ${this.esc(d.title)} (${this.esc(d.size)})</a>
+                <a href="${d.fileUrl}" target="_blank" class="btn btn-sm">Open</a>
+              </div>
+            `).join('') || '<p class="muted sm">No documents uploaded yet.</p>'}
+          </div>
+        </div>
+
+        <div class="drawer-foot">
+          <button class="btn btn-danger btn-sm" onclick="UI.deleteTeamMember('${m.id}')">Remove Member</button>
+          <button class="btn btn-sm" onclick="UI.openTeamModal('${m.id}')">✏️ Edit HRMS &amp; Login</button>
+          <button class="btn btn-primary btn-sm" onclick="UI.closeDrawer()">Close</button>
+        </div>
+      </div>
+    `;
+  },
+
+  openTeamModal(empId = null) {
+    const existing = empId ? this.teamMembers.find(x => x.id === empId) : null;
+    const m = existing || {
+      emp_code: `EMP-${(this.teamMembers.length + 1).toString().padStart(3, '0')}`,
+      full_name: '', designation: 'Sales Executive', department: 'Sales & Revenue', role: 'agent',
+      login_username: '', login_password_hint: 'team123',
+      email: '', phone: '', joining_date: new Date().toISOString().slice(0, 10),
+      monthly_salary: 35000, education: '', emergency_contact: '', address: '', bank_details: '', previous_companies: []
+    };
+    const prevStr = (m.previous_companies || []).map(p => `${p.company} | ${p.role} | ${p.duration} | ${p.ctc}`).join('\n');
+
+    const root = document.getElementById('modalRoot');
+    root.className = 'modal-root open';
+    root.innerHTML = `
+      <form class="modal wide" onsubmit="UI.saveTeamMember(event, '${empId || ''}')">
+        <div class="modal-head">
+          <h3>${empId ? 'Edit Team Member Login & HRMS Profile' : '➕ Invite Team Member (Create Login Access + HRMS Profile)'}</h3>
+          <button type="button" class="btn btn-sm" onclick="UI.closeModal()">✕</button>
+        </div>
+        <div class="modal-body form-grid">
+          <div class="full" style="background:var(--primary-soft);padding:10px 14px;border-radius:9px;border:1px solid var(--primary-soft-2)">
+            <b>🔑 Server Login Access Credentials (For Team Member)</b>
+            <p class="muted sm">After saving, the Invite Window will automatically open so you can send them their Login Link, ID &amp; Password via Email or WhatsApp!</p>
+          </div>
+          <label><span>Assign Login ID / Username *</span><input id="tm_user" value="${this.esc(m.login_username || m.email)}" required placeholder="e.g. naveen" /></label>
+          <label><span>Assign Login Password *</span><input id="tm_pass" value="${this.esc(m.login_password_hint || 'team123')}" required placeholder="Password for member" /></label>
+
+          <label><span>Full Name *</span><input id="tm_name" value="${this.esc(m.full_name)}" required placeholder="Naveen Kumar" /></label>
+          <label><span>Employee ID *</span><input id="tm_code" value="${this.esc(m.emp_code)}" required /></label>
+          <label><span>Designation *</span><input id="tm_desig" value="${this.esc(m.designation)}" required /></label>
+          <label><span>Department</span><input id="tm_dept" value="${this.esc(m.department)}" /></label>
+          <label><span>Email Address *</span><input id="tm_email" type="email" value="${this.esc(m.email)}" required placeholder="naveen@gmail.com" /></label>
+          <label><span>Contact / WhatsApp No *</span><input id="tm_phone" value="${this.esc(m.phone)}" required placeholder="+91 98..." /></label>
+          <label><span>Joining Date</span><input id="tm_join" type="date" value="${this.esc(m.joining_date)}" /></label>
+          <label><span>Monthly Salary (₹)</span><input id="tm_sal" type="number" value="${m.monthly_salary || 0}" /></label>
+          <label class="full"><span>Education &amp; Background</span><input id="tm_edu" value="${this.esc(m.education || '')}" placeholder="MBA / B.Tech..." /></label>
+          <label><span>Residential Address</span><input id="tm_addr" value="${this.esc(m.address || '')}" /></label>
+          <label><span>Emergency Contact</span><input id="tm_emerg" value="${this.esc(m.emergency_contact || '')}" /></label>
+          <label class="full"><span>Bank Account &amp; PAN Details</span><input id="tm_bank" value="${this.esc(m.bank_details || '')}" /></label>
+          <label class="full">
+            <span>Previous Companies History (One per line: Company | Role | Tenure | CTC)</span>
+            <textarea id="tm_prev" placeholder="Infosys | Sales Executive | 2022-2024 | 6 LPA">${this.esc(prevStr)}</textarea>
+          </label>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn" onclick="UI.closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save &amp; Open Email/WhatsApp Invite</button>
+        </div>
+      </form>
+    `;
+  },
+
+  async saveTeamMember(e, id) {
+    e.preventDefault();
+    const rawPrev = document.getElementById('tm_prev').value.trim();
+    const previous_companies = rawPrev ? rawPrev.split('\n').map(line => {
+      const [company = '', role = '', duration = '', ctc = ''] = line.split('|').map(x => x.trim());
+      return { company, role, duration, ctc };
+    }).filter(x => x.company) : [];
+
+    const res = await API.req('/api/team', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: id || undefined,
+        login_username: document.getElementById('tm_user').value,
+        login_password: document.getElementById('tm_pass').value,
+        emp_code: document.getElementById('tm_code').value,
+        full_name: document.getElementById('tm_name').value,
+        designation: document.getElementById('tm_desig').value,
+        department: document.getElementById('tm_dept').value,
+        email: document.getElementById('tm_email').value,
+        phone: document.getElementById('tm_phone').value,
+        joining_date: document.getElementById('tm_join').value,
+        monthly_salary: document.getElementById('tm_sal').value,
+        education: document.getElementById('tm_edu').value,
+        address: document.getElementById('tm_addr').value,
+        emergency_contact: document.getElementById('tm_emerg').value,
+        bank_details: document.getElementById('tm_bank').value,
+        previous_companies
+      })
+    });
+    this.closeModal();
+    this.closeDrawer();
+    this.flashSaved(`✓ Team Member Saved`);
+    await this.refreshWorkspace();
+    await this.renderTeam();
+    // Automatically open the Email/WhatsApp Invite modal right after creating a team member!
+    if (res.id) {
+      this.openInviteShareModal(res.id);
+    }
+  },
+
+  async uploadTeamDoc(ev, empId) {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('doc', file);
+    const res = await fetch(`/api/team/${empId}/documents`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${API.token}` },
+      body: fd
+    });
+    if (res.ok) {
+      const data = await API.req('/api/team');
+      this.teamMembers = data.employees || [];
+      this.openTeamMemberDrawer(empId);
+    }
+  },
+
+  async deleteTeamMember(id) {
+    if (!confirm('Remove this team member?')) return;
+    await API.req(`/api/team/${id}`, { method: 'DELETE' });
+    this.closeDrawer();
+    await this.refreshWorkspace();
+    this.renderTeam();
+  },
+
+  /* ==================== 8. SETTINGS VIEW ==================== */
+  async renderSettings() {
+    await this.refreshWorkspace();
+    const { tenant } = this.workspace;
+    const root = document.getElementById('viewRoot');
+    root.innerHTML = `
+      <div class="grid g-2">
+        <div class="card card-pad">
+          <h3>⚙️ Workspace &amp; Subscription Plan</h3>
+          <div style="background:var(--panel-2);padding:14px;border-radius:11px;margin:14px 0">
+            <div><b>Company:</b> ${this.esc(tenant.company_name)}</div>
+            <div style="margin-top:6px"><b>Plan Status:</b> <span class="stage-badge stage-green">${this.esc(tenant.plan_type)}</span></div>
+          </div>
+          <button class="btn btn-primary" onclick="UI.openPaymentModal()">⚡ Upgrade / Renew 1-Year Subscription (₹24,999)</button>
+        </div>
+
+        <div class="card card-pad">
+          <h3>🌐 CRM Sharing &amp; Team Invite Configuration</h3>
+          <p class="muted sm" style="margin:6px 0 14px">Configure your LAN / Public Internet URL and Gmail SMTP so invited team members can log in from anywhere.</p>
+          <button class="btn btn-primary" onclick="UI.openShareCrmModal()">⚙️ Open Sharing &amp; Email Settings</button>
+        </div>
+      </div>
+    `;
+  },
+
+  /* ==================== NEW LEAD & MULTI-SHEET IMPORT MODAL ==================== */
+  openLeadModal() {
+    const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
+    if (!teamOpts.includes(this.workspace?.user?.name)) teamOpts.unshift(this.workspace?.user?.name || 'Admin');
+
+    const root = document.getElementById('modalRoot');
+    root.className = 'modal-root open';
+    root.innerHTML = `
+      <form class="modal" onsubmit="UI.saveNewLead(event)">
+        <div class="modal-head">
+          <h3>+ Add New Lead</h3>
+          <button type="button" class="btn btn-sm" onclick="UI.closeModal()">✕</button>
+        </div>
+        <div class="modal-body form-grid">
+          <label><span>Company Name * (e.g. AJ Industries)</span><input id="nl_comp" required placeholder="AJ Industries" /></label>
+          <label><span>Contact Person Name</span><input id="nl_name" placeholder="Rajesh Sharma" /></label>
+          <label><span>Contact No *</span><input id="nl_phone" required placeholder="+91 98..." /></label>
+          <label><span>Assign To Team Member</span>
+            <select id="nl_owner">${teamOpts.map(n => `<option value="${this.esc(n)}">${this.esc(n)}</option>`).join('')}</select>
+          </label>
+          <label><span>Stage</span>
+            <select id="nl_stage">${STAGES.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
+          </label>
+          <label><span>Interest Status</span>
+            <select id="nl_interest">${INTEREST_OPTIONS.map(o => `<option value="${o.val}">${o.label}</option>`).join('')}</select>
+          </label>
+          <label><span>Follow-up</span>
+            <select id="nl_freq"><option value="Required">Required</option><option value="Not Required">Not Required</option></select>
+          </label>
+          <label><span>Follow-up Date</span><input id="nl_fdate" type="date" /></label>
+          <label class="full"><span>Notes</span><input id="nl_talk" placeholder="Discussion summary / requirements..." /></label>
+          <label><span>Full Address (Shown inside details)</span><input id="nl_addr" placeholder="Industrial Area, Noida" /></label>
+          <label><span>Website / Link (Shown inside details)</span><input id="nl_links" placeholder="https://..." /></label>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn" onclick="UI.closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Lead</button>
+        </div>
+      </form>
+    `;
+  },
+
+  async saveNewLead(e) {
+    e.preventDefault();
+    await API.req('/api/leads', {
+      method: 'POST',
+      body: JSON.stringify({
+        company: document.getElementById('nl_comp').value,
+        name: document.getElementById('nl_name').value || document.getElementById('nl_comp').value,
+        phone: document.getElementById('nl_phone').value,
+        owner_name: document.getElementById('nl_owner').value,
+        stage: document.getElementById('nl_stage').value,
+        interest_level: document.getElementById('nl_interest').value,
+        followup_required: document.getElementById('nl_freq').value,
+        followup_date: document.getElementById('nl_fdate').value,
+        talk_summary: document.getElementById('nl_talk').value,
+        address: document.getElementById('nl_addr').value,
+        links: document.getElementById('nl_links').value
+      })
+    });
+    this.closeModal();
+    this.flashSaved('✓ New Lead Saved');
+    await this.refreshWorkspace();
+    this.navigate('leads');
+  },
+
+  openImportModal() {
+    const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
+    if (!teamOpts.includes(this.workspace?.user?.name)) teamOpts.unshift(this.workspace?.user?.name || 'Admin');
+
+    const root = document.getElementById('modalRoot');
+    root.className = 'modal-root open';
+    root.innerHTML = `
+      <div class="modal wide">
+        <div class="modal-head">
+          <div>
+            <h3>📥 Import Leads (Excel .xlsx, CSV, Google Sheets, HubSpot)</h3>
+            <p class="muted sm">Supports Multi-Sheet Selection (Choose a specific sheet or Import All Sheets) &amp; preserves exact top-to-bottom row order!</p>
+          </div>
+          <button class="btn btn-sm" onclick="UI.closeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="grid g-3" style="margin-bottom:12px">
+            <div class="card card-pad" style="background:var(--panel-2)">
+              <b>1. Upload Excel (.xlsx / .xls) or CSV</b>
+              <input type="file" id="impFile" accept=".xlsx,.xls,.csv" style="margin-top:8px" onchange="UI.analyzeFileInBrowser()" />
+            </div>
+            <div class="card card-pad" style="background:var(--panel-2)">
+              <b>2. Google Sheets Link (Anyone with link)</b>
+              <div style="display:flex;gap:6px;margin-top:8px">
+                <input id="googleSheetUrl" placeholder="Paste https://docs.google.com/spreadsheets/d/..." />
+                <button class="btn btn-primary btn-sm" id="btnAnalyzeGS" onclick="UI.analyzeGoogleSheet()">Analyze</button>
+              </div>
+            </div>
+            <div class="card card-pad" style="background:var(--panel-2)">
+              <b>3. Assign Imported Leads To Team Member</b>
+              <select id="impAssignOwner" style="margin-top:8px">
+                ${teamOpts.map(n => `<option value="${this.esc(n)}">👤 ${this.esc(n)}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+
+          <!-- Multi-Sheet Selector Bar (Appears automatically when file has > 1 sheet!) -->
+          <div id="sheetPickerBar" class="sheet-picker-bar hidden">
+            <div>
+              <b style="color:var(--primary-600)">📑 Multiple Sheets Detected in File!</b>
+              <span class="muted sm" style="margin-left:6px">Choose which sheet/tab you want to import, or select "Import All Sheets":</span>
+            </div>
+            <select id="sheetSelectorDropdown" style="width:auto;min-width:260px;font-weight:700" onchange="UI.onSelectWorkbookSheet(this.value)"></select>
+          </div>
+
+          <div id="analyzerWorkspace" class="hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <h4>Auto/Manual Column Classification (All other columns are automatically saved inside each lead!)</h4>
+              <span class="stage-badge stage-blue" id="analyzedBadge">0 rows</span>
+            </div>
+            <div id="columnMapGrid" class="map-grid"></div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
+              <h4>Live Preview (Showing in Exact Top-to-Bottom Sheet Order — Row 1 First)</h4>
+              <button class="btn btn-success" id="btnCommitImport" onclick="UI.commitMappedImport()">✅ Confirm &amp; Import Leads</button>
+            </div>
+            <div class="table-wrap" style="max-height:240px;border:1px solid var(--border);border-radius:10px">
+              <table class="tbl" id="livePreviewTable"></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  autoClassifyColumnsClient(headers, sampleRows) {
+    const mapping = {};
+    const used = new Set();
+    headers.forEach(h => {
+      const clean = String(h).toLowerCase().replace(/[^a-z0-9]/g, '');
+      let field = 'ignore';
+      if (!used.has('company') && ['manufacturer', 'company', 'business', 'firm', 'organization', 'enterprise', 'party', 'unit', 'vendor', 'brand', 'store', 'industry', 'industries'].some(p => clean.includes(p))) field = 'company';
+      else if (!used.has('name') && ['contactperson', 'personname', 'fullname', 'customer', 'client', 'director', 'owner', 'proprietor', 'name'].some(p => clean.includes(p))) field = 'name';
+      else if (!used.has('phone') && ['mobile', 'phone', 'contact', 'whatsapp', 'cell', 'tel', 'number', 'phno', 'mob'].some(p => clean.includes(p))) field = 'phone';
+      else if (!used.has('address') && ['address', 'location', 'city', 'state', 'area', 'pincode', 'street', 'sector', 'district'].some(p => clean.includes(p))) field = 'address';
+      else if (!used.has('links') && ['link', 'website', 'url', 'web', 'linkedin', 'maps', 'domain', 'http', 'indiamart'].some(p => clean.includes(p))) field = 'links';
+      else if (!used.has('email') && ['email', 'mail'].some(p => clean.includes(p))) field = 'email';
+      else if (!used.has('talk_summary') && ['note', 'remark', 'talk', 'discussion', 'product', 'category', 'requirement'].some(p => clean.includes(p))) field = 'talk_summary';
+      else if (!used.has('stage') && ['stage', 'status'].some(p => clean.includes(p))) field = 'stage';
+
+      if (field === 'ignore' && sampleRows.length > 0) {
+        const vals = sampleRows.map(r => String(r[h] ?? '').trim()).filter(Boolean);
+        if (vals.some(v => /^https?:\/\/|www\.|\.com|\.in/i.test(v)) && !used.has('links')) field = 'links';
+        else if (vals.some(v => /^[+\d\s\-()]{8,16}$/.test(v) && v.replace(/\D/g, '').length >= 8) && !used.has('phone')) field = 'phone';
+      }
+      if (field !== 'ignore') used.add(field);
+      mapping[h] = field;
+    });
+    if (!Object.values(mapping).includes('company') && !Object.values(mapping).includes('name') && headers.length > 0) {
+      mapping[headers[0]] = 'company';
+    }
+    return mapping;
+  },
+
+  // Setup Workbook & Show Multi-Sheet Picker if > 1 Sheet Exists!
+  setupWorkbookInWizard(workbook, sourceLabel) {
+    this.currentWorkbook = workbook;
+    const sheetNames = workbook.SheetNames || [];
+    if (!sheetNames.length) return alert('No sheets found in file.');
+
+    this.importState.source = sourceLabel;
+    this.importState.sheetNames = sheetNames;
+
+    const pickerBar = document.getElementById('sheetPickerBar');
+    const dropdown = document.getElementById('sheetSelectorDropdown');
+
+    if (sheetNames.length > 1) {
+      pickerBar.classList.remove('hidden');
+      dropdown.innerHTML = `
+        <option value="__ALL__">📚 Import All Sheets (${sheetNames.length} Sheets Combined)</option>
+        ${sheetNames.map((s, idx) => `<option value="${this.esc(s)}">📄 Sheet ${idx + 1}: ${this.esc(s)}</option>`).join('')}
+      `;
+      // Default to first sheet so user can clearly inspect Sheet 1 or switch to "Import All Sheets"
+      dropdown.value = sheetNames[0];
+      this.onSelectWorkbookSheet(sheetNames[0]);
+    } else {
+      pickerBar.classList.add('hidden');
+      this.onSelectWorkbookSheet(sheetNames[0]);
+    }
+  },
+
+  onSelectWorkbookSheet(sheetSelection) {
+    const workbook = this.currentWorkbook;
+    if (!workbook) return;
+    this.importState.selectedSheet = sheetSelection;
+
+    const targetSheets = sheetSelection === '__ALL__' ? workbook.SheetNames : [sheetSelection];
+    let headers = [];
+    const headerSet = new Set();
+    let rows = [];
+
+    for (const sheetName of targetSheets) {
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet) continue;
+      const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (!matrix || matrix.length === 0) continue;
+
+      let headerIdx = 0, maxCols = 0;
+      for (let i = 0; i < Math.min(12, matrix.length); i++) {
+        const nonEmpty = matrix[i].filter(c => String(c).trim() !== '').length;
+        if (nonEmpty > maxCols) { maxCols = nonEmpty; headerIdx = i; }
+      }
+
+      const rawHeaders = matrix[headerIdx].map((h, i) => String(h).trim() || `Column_${i + 1}`);
+      rawHeaders.forEach(h => {
+        if (!headerSet.has(h)) {
+          headerSet.add(h);
+          headers.push(h);
+        }
+      });
+
+      // Iterate top-to-bottom so Row 1 is always first!
+      for (let r = headerIdx + 1; r < matrix.length; r++) {
+        const arr = matrix[r];
+        if (!arr || arr.every(c => String(c).trim() === '')) continue;
+        const obj = { _SheetName: sheetName };
+        rawHeaders.forEach((h, idx) => { obj[h] = String(arr[idx] ?? '').trim(); });
+        rows.push(obj);
+      }
+    }
+
+    if (!rows.length) return alert('No data rows found in the selected sheet.');
+    const autoMapping = this.autoClassifyColumnsClient(headers, rows.slice(0, 15));
+    this.loadAnalyzedSheetIntoWizard(this.importState.source, headers, rows, autoMapping);
+  },
+
+  analyzeFileInBrowser() {
+    const file = document.getElementById('impFile').files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      this.setupWorkbookInWizard(wb, file.name.toLowerCase().endsWith('.csv') ? 'CSV' : 'Excel');
+    };
+    reader.readAsArrayBuffer(file);
+  },
+
+  async analyzeGoogleSheet() {
+    const url = document.getElementById('googleSheetUrl').value.trim();
+    if (!url) return alert('Paste your Google Sheet link first');
+    const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!idMatch || !idMatch[1]) return alert('Invalid Google Sheet URL.');
+
+    const btn = document.getElementById('btnAnalyzeGS');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+
+    try {
+      const data = await API.req('/api/leads/fetch-google-sheet', { method: 'POST', body: JSON.stringify({ url }) });
+      if (data.base64Xlsx) {
+        const binaryStr = atob(data.base64Xlsx);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+        const wb = XLSX.read(bytes, { type: 'array' });
+        this.setupWorkbookInWizard(wb, 'Google Sheets');
+      } else if (data.csvText) {
+        const wb = XLSX.read(data.csvText, { type: 'string' });
+        this.setupWorkbookInWizard(wb, 'Google Sheets');
+      }
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Analyze';
+    }
+  },
+
+  loadAnalyzedSheetIntoWizard(source, headers, rows, autoMapping) {
+    this.importState.headers = headers;
+    this.importState.rawRows = rows;
+    this.importState.mapping = { ...autoMapping };
+
+    document.getElementById('analyzerWorkspace').classList.remove('hidden');
+    const sheetLabel = this.importState.selectedSheet === '__ALL__'
+      ? `All Sheets (${this.importState.sheetNames.length})`
+      : this.importState.selectedSheet;
+    document.getElementById('analyzedBadge').textContent = `${rows.length.toLocaleString()} Leads in ${sheetLabel}`;
+
+    document.getElementById('columnMapGrid').innerHTML = headers.map((h, idx) => {
+      const sampleVal = (rows.find(r => r[h]) || {})[h] || 'empty';
+      const cur = this.importState.mapping[h] || 'ignore';
+      return `
+        <div class="map-card">
+          <b style="font-size:11.5px;display:block">${this.esc(h)}</b>
+          <small class="muted" style="font-size:10.5px;display:block;margin-bottom:4px">1st Row: ${this.esc(String(sampleVal).slice(0, 28))}</small>
+          <select onchange="UI.updateColumnMapping(${idx}, this.value)">
+            ${CLASSIFY_FIELDS.map(f => `<option value="${f.key}" ${cur === f.key ? 'selected' : ''}>${f.label}</option>`).join('')}
+          </select>
+        </div>
+      `;
+    }).join('');
+    this.renderLiveMappedPreview();
+  },
+
+  updateColumnMapping(headerIdx, val) {
+    const h = this.importState.headers[headerIdx];
+    this.importState.mapping[h] = val;
+    this.renderLiveMappedPreview();
+  },
+
+  buildMappedLeadObjects() {
+    const { headers, rawRows, mapping } = this.importState;
+    return rawRows.map(row => {
+      const l = {
+        company: '', name: '', phone: '', stage: 'New', interest_level: 'Mid / Follow-up',
+        talk_summary: '', followup_date: '', address: '', links: '', email: '', deal_value: 0,
+        extra_data: {}
+      };
+      if (row._SheetName) l.extra_data['Sheet Name'] = row._SheetName;
+      headers.forEach(h => {
+        const t = mapping[h];
+        const v = String(row[h] ?? '').trim();
+        if (!v) return;
+        l.extra_data[h] = v;
+        if (t && t !== 'ignore') {
+          l[t] = l[t] ? `${l[t]}, ${v}` : v;
+        }
+      });
+      if (!l.company && l.name) l.company = l.name;
+      if (!l.name && l.company) l.name = l.company;
+      return l;
+    }).filter(l => l.company || l.name || l.phone);
+  },
+
+  renderLiveMappedPreview() {
+    const mapped = this.buildMappedLeadObjects();
+    document.getElementById('btnCommitImport').textContent = `✅ Confirm & Import ${mapped.length.toLocaleString()} Leads`;
+    document.getElementById('livePreviewTable').innerHTML = `
+      <thead><tr><th>Sheet Row #</th><th>Company Name</th><th>Contact No</th><th>Stage</th><th>Notes</th><th>Address (Inside)</th><th>Link (Inside)</th></tr></thead>
+      <tbody>
+        ${mapped.slice(0, 25).map((l, i) => `
+          <tr>
+            <td><b>#${i + 1}</b></td>
+            <td><b>${this.esc(l.company)}</b></td>
+            <td>${this.esc(l.phone || '—')}</td>
+            <td><span class="stage-badge stage-blue">${this.esc(l.stage)}</span></td>
+            <td>${this.esc(l.talk_summary || '—')}</td>
+            <td><small class="muted">${this.esc(l.address || '—')}</small></td>
+            <td><small class="muted">${this.esc(l.links || '—')}</small></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    `;
+  },
+
+  async commitMappedImport() {
+    const mapped = this.buildMappedLeadObjects();
+    if (!mapped.length) return alert('Classify at least Company Name or Contact No');
+    const assignTo = document.getElementById('impAssignOwner')?.value || this.workspace?.user?.name;
+    const btn = document.getElementById('btnCommitImport');
+    btn.disabled = true;
+    btn.textContent = 'Importing...';
+    try {
+      const data = await API.req('/api/leads/import-mapped', {
+        method: 'POST',
+        body: JSON.stringify({ leads: mapped, source: this.importState.source, assignTo })
+      });
+      alert(`Successfully imported ${data.importedCount.toLocaleString()} leads in exact top-to-bottom sheet order!`);
+      this.closeModal();
+      await this.refreshWorkspace();
+      this.navigate('leads');
+    } catch (e) {
+      alert(e.message);
+      btn.disabled = false;
+    }
+  },
+
+  toggleSelectLead(id, checked) {
+    if (checked) this.selectedLeadIds.add(id);
+    else this.selectedLeadIds.delete(id);
+    this.renderLeads();
+  },
+
+  toggleSelectAllPage(checked) {
+    this.currentPageLeads.forEach(l => {
+      if (checked) this.selectedLeadIds.add(l.id);
+      else this.selectedLeadIds.delete(l.id);
+    });
+    this.renderLeads();
+  },
+
+  async deleteSelectedLeads() {
+    if (!confirm(`Delete ${this.selectedLeadIds.size} selected leads?`)) return;
+    await API.req('/api/leads/bulk-delete', { method: 'POST', body: JSON.stringify({ ids: Array.from(this.selectedLeadIds) }) });
+    this.selectedLeadIds.clear();
+    await this.refreshWorkspace();
+    this.renderLeads();
+  },
+
+  async deleteAllLeads() {
+    if (!confirm('Delete ALL leads in workspace?')) return;
+    await API.req('/api/leads/bulk-delete', { method: 'POST', body: JSON.stringify({ deleteAll: true }) });
+    this.selectedLeadIds.clear();
+    await this.refreshWorkspace();
+    this.renderLeads();
+  },
+
+  openPaymentModal() {
+    const root = document.getElementById('modalRoot');
+    root.className = 'modal-root open';
+    root.innerHTML = `
+      <form class="modal" onsubmit="UI.completeOneYearUpgrade(event)">
+        <div class="modal-head"><h3>💳 Activate 1-Year Subscription</h3><button type="button" class="btn btn-sm" onclick="UI.closeModal()">✕</button></div>
+        <div class="modal-body">
+          <p style="margin-bottom:12px">Unlock 365 Days of full CRM &amp; Team HRMS access (₹24,999 / Year).</p>
+          <label class="field"><span>Payment Method</span><select id="pay_gw"><option>UPI / QR</option><option>Credit / Debit Card</option><option>NetBanking</option></select></label>
+          <label class="field"><span>Transaction Ref</span><input id="pay_ref" value="TXN_${Date.now()}" required /></label>
+        </div>
+        <div class="modal-foot"><button type="submit" class="btn btn-success">Pay &amp; Activate 1 Year</button></div>
+      </form>
+    `;
+  },
+
+  async completeOneYearUpgrade(e) {
+    e.preventDefault();
+    await API.req('/api/subscriptions/upgrade-1yr', {
+      method: 'POST',
+      body: JSON.stringify({ paymentGateway: document.getElementById('pay_gw').value, transactionRef: document.getElementById('pay_ref').value })
+    });
+    this.closeModal();
+    await this.refreshWorkspace();
+    alert('1-Year Subscription Activated!');
+  },
+
+  closeModal() {
+    document.getElementById('modalRoot').className = 'modal-root';
+  }
+};
+
+window.addEventListener('DOMContentLoaded', () => UI.init());
+</script>
+</body>
+</html>

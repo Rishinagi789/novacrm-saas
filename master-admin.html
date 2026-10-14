@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NovaCRM — Master SaaS Admin Console (Restricted)</title>
+<style>
+  :root{--bg:#0f172a;--panel:#1e293b;--border:#334155;--text:#f8fafc;--muted:#94a3b8;--primary:#6366f1;--success:#10b981;--danger:#ef4444}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;padding:28px}
+  .wrap{max-width:1200px;margin:0 auto}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:20px}
+  h1,h2,h3{margin:0 0 10px}
+  input,select{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#0f172a;color:#fff;margin-top:5px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .btn{padding:10px 16px;border-radius:8px;border:none;font-weight:600;cursor:pointer;background:var(--primary);color:#fff}
+  .btn-success{background:var(--success)}
+  .btn-danger{background:var(--danger)}
+  table{width:100%;border-collapse:collapse;margin-top:14px}
+  th,td{padding:12px;border-bottom:1px solid var(--border);text-align:left}
+  .pill{padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600;background:#312e81;color:#c7d2fe}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <h1>👑 NovaCRM Master SaaS Admin Portal</h1>
+      <p style="color:var(--muted);margin:0">Restricted Owner Console — Provision Client Login IDs, Passwords & Timed Subscriptions</p>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <input id="masterKey" type="password" placeholder="Enter MASTER_ADMIN_SECRET" style="width:260px;margin:0" value="NOVA-MASTER-KEY-9988" />
+      <button class="btn" onclick="loadClients()">Unlock & Load Clients</button>
+    </div>
+  </div>
+
+  <!-- Provision New Client Login ID & Password -->
+  <div class="card">
+    <h3>➕ Create Client Workspace, Login ID & Password</h3>
+    <form onsubmit="provisionClient(event)" class="grid" style="margin-top:12px">
+      <label>Company Name *<input id="c_comp" required placeholder="e.g. Apex Industries Ltd" /></label>
+      <label>Client Contact Person *<input id="c_person" required placeholder="e.g. Rajesh Singh" /></label>
+      <label>Client Email *<input id="c_email" type="email" required placeholder="rajesh@apex.com" /></label>
+      <label>Client Phone<input id="c_phone" placeholder="+91 98..." /></label>
+      <label>Assign Login User ID *<input id="c_user" required placeholder="e.g. apex_admin" /></label>
+      <label>Assign Login Password *<input id="c_pass" type="text" required placeholder="Strong password" /></label>
+      <label>Access Period (Days) *
+        <select id="c_days">
+          <option value="7">7 Days (Free Trial Mode)</option>
+          <option value="15">15 Days (Custom Access)</option>
+          <option value="30">30 Days (1 Month Access)</option>
+          <option value="90">90 Days (Quarterly Access)</option>
+          <option value="365">365 Days (1-Year Paid Subscription)</option>
+        </select>
+      </label>
+      <label>Plan Tier
+        <select id="c_plan">
+          <option value="trial_7d">7-Day Free Trial</option>
+          <option value="custom_access">Custom Timed Access</option>
+          <option value="annual_1yr">1-Year Paid Subscription</option>
+        </select>
+      </label>
+      <div style="display:flex;align-items:flex-end">
+        <button type="submit" class="btn btn-success" style="width:100%">Create Client ID & Grant Access</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Active Client Workspaces Table -->
+  <div class="card">
+    <h3>🏢 Provisioned Client Workspaces</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Company & Contact</th>
+          <th>Assigned Login ID</th>
+          <th>Plan</th>
+          <th>Access Expires</th>
+          <th>DB Usage (Leads / Emp)</th>
+          <th>Extend / Modify Access</th>
+        </tr>
+      </thead>
+      <tbody id="clientRows">
+        <tr><td colspan="6" style="color:var(--muted)">Click "Unlock & Load Clients" above.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const getHeaders = () => ({
+  'Content-Type': 'application/json',
+  'x-master-secret': document.getElementById('masterKey').value.trim()
+});
+
+async function loadClients() {
+  const res = await fetch('/api/master/tenants', { headers: getHeaders() });
+  const data = await res.json();
+  if (!res.ok) return alert(data.error || 'Failed to load');
+
+  const tbody = document.getElementById('clientRows');
+  tbody.innerHTML = data.tenants.map(t => {
+    const daysLeft = Math.ceil((new Date(t.access_end) - Date.now()) / 86400000);
+    return `
+      <tr>
+        <td><b>${t.company_name}</b><br><small style="color:var(--muted)">${t.contact_name} (${t.email})</small></td>
+        <td><code>${t.login_id || t.email}</code></td>
+        <td><span class="pill">${t.plan_type}</span></td>
+        <td><b>${new Date(t.access_end).toLocaleDateString()}</b> (${daysLeft}d left)</td>
+        <td>${t.lead_count.toLocaleString()} Leads / ${t.emp_count} Emp</td>
+        <td>
+          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="modifyAccess('${t.id}', 7, 'trial_7d')">+7d</button>
+          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="modifyAccess('${t.id}', 10, 'custom_access')">Set ≤10d</button>
+          <button class="btn btn-success" style="padding:5px 10px;font-size:12px" onclick="modifyAccess('${t.id}', 365, 'annual_1yr')">+1 Year Paid</button>
+        </td>
+      </tr>
+    `;
+  }).join('') || '<tr><td colspan="6">No clients created yet. Use the form above to create your first client login.</td></tr>';
+}
+
+async function provisionClient(e) {
+  e.preventDefault();
+  const payload = {
+    companyName: document.getElementById('c_comp').value,
+    contactName: document.getElementById('c_person').value,
+    email: document.getElementById('c_email').value,
+    phone: document.getElementById('c_phone').value,
+    username: document.getElementById('c_user').value,
+    password: document.getElementById('c_pass').value,
+    accessDays: Number(document.getElementById('c_days').value),
+    planType: document.getElementById('c_plan').value
+  };
+  const res = await fetch('/api/master/provision-client', { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
+  const data = await res.json();
+  if (!res.ok) return alert(data.error);
+  alert(`Client Created! Login ID: ${data.username}`);
+  e.target.reset();
+  loadClients();
+}
+
+async function modifyAccess(tenantId, addDays, planType) {
+  const res = await fetch('/api/master/update-access', {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ tenantId, addDays, planType, status: 'active' })
+  });
+  if (res.ok) loadClients();
+}
+</script>
+</body>
+</html>
