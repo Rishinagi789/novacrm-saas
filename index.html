@@ -2607,3 +2607,69 @@ window.addEventListener('DOMContentLoaded', () => UI.init());
   }, 3000);
 })();
 </script>
+<script>
+// ==========================================
+// ⚡ LIVE TEAM AUTO-SYNC (2 SECONDS INTERVAL)
+// ==========================================
+(function() {
+  let lastSyncTimestamp = 0;
+  let isLocalEditing = false;
+
+  // यूजर जब टाइप कर रहा हो तो डिस्टर्ब न करें
+  document.addEventListener('focusin', (e) => {
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) isLocalEditing = true;
+  });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => { isLocalEditing = false; }, 1000);
+  });
+
+  // हर 2 सेकंड में सर्वर से नया डेटा लाएं
+  setInterval(async () => {
+    if (isLocalEditing) return;
+    try {
+      const res = await fetch('/api/team-sync-master');
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data.updatedAt && data.updatedAt > lastSyncTimestamp) {
+        lastSyncTimestamp = data.updatedAt;
+        
+        // ऐप की लीड्स लिस्ट को अपडेट करें
+        if (typeof App !== 'undefined' && Array.isArray(App.leads)) {
+          if (JSON.stringify(App.leads) !== JSON.stringify(data.leads)) {
+            App.leads = data.leads;
+            if (typeof App.renderLeads === 'function') App.renderLeads();
+            else if (typeof App.render === 'function') App.render();
+          }
+        } else if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) {
+          if (JSON.stringify(window.leads) !== JSON.stringify(data.leads)) {
+            window.leads = data.leads;
+            if (typeof renderLeads === 'function') renderLeads();
+          }
+        }
+      }
+    } catch (e) {}
+  }, 2000);
+
+  // जब भी कोई बदलाव हो, तुरंत सर्वर को भेजें
+  document.addEventListener('change', async () => {
+    setTimeout(async () => {
+      let currentLeads = [];
+      if (typeof App !== 'undefined' && Array.isArray(App.leads)) currentLeads = App.leads;
+      else if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) currentLeads = window.leads;
+
+      if (currentLeads.length > 0) {
+        try {
+          const res = await fetch('/api/team-sync-master', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ leads: currentLeads })
+          });
+          const data = await res.json();
+          if (data.updatedAt) lastSyncTimestamp = data.updatedAt;
+        } catch (e) {}
+      }
+    }, 400);
+  });
+})();
+</script>

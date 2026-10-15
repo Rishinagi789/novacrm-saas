@@ -1116,6 +1116,39 @@ app.post('/api/master-sync', express.json({ limit: '50mb' }), (req, res) => {
   const saved = saveMasterLeads(current);
   res.json({ success: true, updated_at: saved.updated_at, count: current.length });
 });
+// ==========================================
+// 🌐 100% FREE CLOUD TEAM SYNC ROUTE
+// ==========================================
+const fs = require('fs');
+const path = require('path');
+const dbFile = path.join(__dirname, 'master_team_data.json');
+
+// डेटा पढ़ना
+app.get('/api/team-sync-master', (req, res) => {
+  try {
+    if (!fs.existsSync(dbFile)) {
+      return res.json({ leads: [], updatedAt: 0 });
+    }
+    const content = fs.readFileSync(dbFile, 'utf8');
+    res.json(JSON.parse(content || '{"leads":[], "updatedAt":0}'));
+  } catch (e) {
+    res.json({ leads: [], updatedAt: 0 });
+  }
+});
+
+// डेटा सेव करना (कोई भी टीम मेंबर बदलेगा तो यहाँ सेव होगा)
+app.post('/api/team-sync-master', express.json({ limit: '50mb' }), (req, res) => {
+  try {
+    const { leads } = req.body;
+    if (!Array.isArray(leads)) return res.status(400).json({ error: 'Invalid data' });
+    
+    const payload = { leads: leads, updatedAt: Date.now() };
+    fs.writeFileSync(dbFile, JSON.stringify(payload), 'utf8');
+    res.json({ success: true, updatedAt: payload.updatedAt });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ NovaCRM + HRMS Server v7 running!`);
     console.log(`💻 On this PC: http://localhost:${PORT}`);
