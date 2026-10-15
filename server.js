@@ -1060,9 +1060,9 @@ app.post('/api/leads/quick-sync-update', (req, res) => {
 // ============================================================================
 // 🌐 MASTER BACKEND TEAM SYNC ENGINE (SHARES ALL LEADS ACROSS ALL TEAM IDS)
 // ============================================================================
-const fsMasterSync = require('fs');
-const pathMasterSync = require('path');
-const MASTER_LEADS_FILE = pathMasterSync.join(__dirname, 'master_shared_leads.json');
+cconst fs = require('fs');
+const path = require('path');
+const dbFile = path.join(__dirname, 'master_team_data.json');
 
 function getMasterLeads() {
   try {
