@@ -1058,57 +1058,50 @@ app.post('/api/leads/quick-sync-update', (req, res) => {
   });
 });
 // ==========================================
-// 🌐 GLOBAL SHARED TEAM WORKSPACE SYNC API
+// 🌐 GLOBAL SHARED TEAM WORKSPACE SYNC API (NO DB VARIABLE NEEDED)
 // ==========================================
-db.run(`CREATE TABLE IF NOT EXISTS shared_team_state (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  leads_json TEXT DEFAULT '[]',
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_by TEXT DEFAULT 'system'
-)`);
+const fsSyncTeam = require('fs');
+const pathSyncTeam = require('path');
+const TEAM_SYNC_FILE = pathSyncTeam.join(__dirname, 'shared_team_leads.json');
 
 // 1. सभी टीम मेंबर्स के लिए एक ही कॉमन लीड्स लिस्ट भेजें
 app.get('/api/team-sync/leads', (req, res) => {
-  db.get(`SELECT leads_json, updated_at, updated_by FROM shared_team_state WHERE id = 1`, [], (err, row) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!row) {
+  try {
+    if (!fsSyncTeam.existsSync(TEAM_SYNC_FILE)) {
       return res.json({ leads: [], updated_at: null });
     }
-    try {
-      res.json({
-        leads: JSON.parse(row.leads_json || '[]'),
-        updated_at: row.updated_at,
-        updated_by: row.updated_by
-      });
-    } catch (e) {
-      res.json({ leads: [], updated_at: null });
-    }
-  });
+    const raw = fsSyncTeam.readFileSync(TEAM_SYNC_FILE, 'utf8');
+    const data = JSON.parse(raw || '{}');
+    res.json({
+      leads: Array.isArray(data.leads) ? data.leads : [],
+      updated_at: data.updated_at || null,
+      updated_by: data.updated_by || 'team'
+    });
+  } catch (e) {
+    res.json({ leads: [], updated_at: null });
+  }
 });
 
 // 2. कोई भी टीम मेंबर अपलोड, डिलीट या एडिट करे तो सबके लिए सेव करें
 app.post('/api/team-sync/leads', express.json({ limit: '50mb' }), (req, res) => {
-  const { leads, user } = req.body;
-  if (!Array.isArray(leads)) return res.status(400).json({ error: 'Invalid leads array' });
+  try {
+    const { leads, user } = req.body;
+    if (!Array.isArray(leads)) return res.status(400).json({ error: 'Invalid leads array' });
 
-  const jsonStr = JSON.stringify(leads);
-  const now = new Date().toISOString();
+    const now = new Date().toISOString();
+    const payload = {
+      leads: leads,
+      updated_at: now,
+      updated_by: user || 'team_member'
+    };
 
-  db.run(
-    `INSERT INTO shared_team_state (id, leads_json, updated_at, updated_by)
-     VALUES (1, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       leads_json = excluded.leads_json,
-       updated_at = excluded.updated_at,
-       updated_by = excluded.updated_by`,
-    [jsonStr, now, user || 'team_member'],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, count: leads.length, updated_at: now });
-    }
-  );
+    fsSyncTeam.writeFileSync(TEAM_SYNC_FILE, JSON.stringify(payload), 'utf8');
+    res.json({ success: true, count: leads.length, updated_at: now });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
-  app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ NovaCRM + HRMS Server v7 running!`);
     console.log(`💻 On this PC: http://localhost:${PORT}`);
     if (netUrls.length) console.log(`🌐 Share on Wi-Fi / Office LAN: ${netUrls[0]}`);
