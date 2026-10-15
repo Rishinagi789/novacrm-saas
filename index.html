@@ -2348,39 +2348,266 @@ window.addEventListener('DOMContentLoaded', () => UI.init());
 </body>
 </html>
 <script>
-// === LIVE TEAM AUTO-SYNC (HAR 5 SECOND MEIN UPDATE) ===
+// ============================================================================
+// 🚀 NOVACRM: REAL-TIME TEAM SYNC + 35 LEADS AUTO-SHIFT QUEUE SYSTEM
+// ============================================================================
 (function() {
-  let typingTimer = null;
-  let isUserBusy = false;
+  let lastServerTimestamp = null;
+  let isApplyingRemote = false;
+  let isUserTyping = false;
+  let currentQueueMode = 'active'; // 'active' (New/Pending) or 'completed' (Categorized/Delivered)
+  const PAGE_SIZE_LIMIT = 35;
 
-  // Jab aap ya team member kuch type ya select kar rahe hon, tab refresh rokein
-  document.addEventListener('focusin', (e) => {
-    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) isUserBusy = true;
-  });
-  document.addEventListener('focusout', () => {
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => { isUserBusy = false; }, 1500);
-  });
+  // 1. पता लगाएं कि आपके ऐप में लीड्स किस नाम से सेव होती हैं
+  function getLocalLeadsKey() {
+    const keys = Object.keys(localStorage);
+    // सबसे पहले वो key ढूँढें जिसमें leads का array हो
+    for (const k of keys) {
+      if (k.toLowerCase().includes('lead') || k.toLowerCase().includes('crm') || k.toLowerCase().includes('nova')) {
+        try {
+          const val = JSON.parse(localStorage.getItem(k));
+          if (Array.isArray(val)) return k;
+          if (val && Array.isArray(val.leads)) return k;
+        } catch (e) {}
+      }
+    }
+    return 'novacrm_leads';
+  }
 
-  // Jab bhi koi dropdown (Stage / Follow-up) ya Date change ho, turant server par bhejein
-  document.addEventListener('change', () => {
-    setTimeout(() => {
-      if (typeof App !== 'undefined' && typeof App.saveState === 'function') App.saveState();
-    }, 300);
-  });
+  function readAppLeads() {
+    if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) return window.leads;
+    if (typeof App !== 'undefined' && Array.isArray(App.leads)) return App.leads;
+    if (typeof state !== 'undefined' && Array.isArray(state.leads)) return state.leads;
 
-  // Har 5 second mein team ke changes screen par layein
-  setInterval(async () => {
-    if (isUserBusy) return;
-    if (document.querySelector('.modal.open, .modal.active, [style*="display: block"], [style*="display: flex"]')) return;
+    const key = getLocalLeadsKey();
+    try {
+      const raw = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(raw) ? raw : (raw.leads || []);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function writeAppLeads(newLeads) {
+    isApplyingRemote = true;
+    try {
+      if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) window.leads = newLeads;
+      if (typeof App !== 'undefined' && Array.isArray(App.leads)) App.leads = newLeads;
+      if (typeof state !== 'undefined' && Array.isArray(state.leads)) state.leads = newLeads;
+
+      // सभी संभावित localStorage keys को अपडेट करें ताकि कोई भी ID पुरानी लिस्ट न दिखाए
+      const key = getLocalLeadsKey();
+      try {
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        if (existing && !Array.isArray(existing) && typeof existing === 'object') {
+          existing.leads = newLeads;
+          localStorage.setItem(key, JSON.stringify(existing));
+        } else {
+          localStorage.setItem(key, JSON.stringify(newLeads));
+        }
+      } catch (e) {
+        localStorage.setItem(key, JSON.stringify(newLeads));
+      }
+
+      // UI को तुरंत रिफ्रेश करें
+      if (typeof App !== 'undefined') {
+        if (typeof App.renderLeads === 'function') App.renderLeads();
+        else if (typeof App.render === 'function') App.render();
+        else if (typeof App.loadLeads === 'function') App.loadLeads();
+      } else if (typeof renderLeads === 'function') {
+        renderLeads();
+      } else if (typeof renderTable === 'function') {
+        renderTable();
+      }
+      applyQueueFilterAndPagination();
+    } finally {
+      setTimeout(() => { isApplyingRemote = false; }, 300);
+    }
+  }
+
+  // 2. जब भी कोई लीड अपलोड, डिलीट या एडिट हो -> तुरंत सर्वर पर भेजें
+  async function pushLeadsToServer(leadsArray) {
+    if (isApplyingRemote) return;
+    try {
+      const res = await fetch('/api/team-sync/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leads: leadsArray,
+          user: localStorage.getItem('nova_user') || 'team'
+        })
+      });
+      const data = await res.json();
+      if (data.updated_at) lastServerTimestamp = data.updated_at;
+      updateQueueBadgeCounts();
+    } catch (err) {
+      console.warn('Sync push error:', err);
+    }
+  }
+
+  // 3. सर्वर से हर 3 सेकंड में चेक करें कि किसी टीम मेंबर ने कुछ बदला क्या
+  async function pullLeadsFromServer(force = false) {
+    if (isUserTyping && !force) return;
+    if (document.querySelector('.modal.active, .modal.open')) return;
 
     try {
-      if (typeof App !== 'undefined') {
-        if (typeof App.loadLeads === 'function') await App.loadLeads();
-        else if (typeof App.fetchLeads === 'function') await App.fetchLeads();
-        else if (typeof App.init === 'function' && localStorage.getItem('nova_token')) await App.loadData?.();
+      const res = await fetch('/api/team-sync/leads');
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data.updated_at && data.updated_at !== lastServerTimestamp) {
+        lastServerTimestamp = data.updated_at;
+        const currentLeads = readAppLeads();
+        if (JSON.stringify(currentLeads) !== JSON.stringify(data.leads)) {
+          writeAppLeads(data.leads || []);
+        }
       }
-    } catch (e) {}
-  }, 5000);
+    } catch (err) {}
+  }
+
+  // localStorage.setItem को इंटरसेप्ट करें ताकि अपलोड/डिलीट/स्टेज चेंज तुरंत पकड़ में आए
+  const originalSetItem = localStorage.setItem.bind(localStorage);
+  localStorage.setItem = function(key, value) {
+    originalSetItem(key, value);
+    if (!isApplyingRemote && (key.toLowerCase().includes('lead') || key.toLowerCase().includes('crm') || key.toLowerCase().includes('nova'))) {
+      setTimeout(() => {
+        const latest = readAppLeads();
+        pushLeadsToServer(latest);
+        applyQueueFilterAndPagination();
+      }, 150);
+    }
+  };
+
+  // किसी भी ड्रॉपडाउन (Stage, Status), Date या Notes बदलने पर तुरंत सेव करें
+  document.addEventListener('change', (e) => {
+    if (['SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+      setTimeout(() => {
+        const latest = readAppLeads();
+        pushLeadsToServer(latest);
+        applyQueueFilterAndPagination();
+      }, 300);
+    }
+  });
+
+  document.addEventListener('focusin', (e) => {
+    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) && e.target.type !== 'file') isUserTyping = true;
+  });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => { isUserTyping = false; }, 1000);
+  });
+
+  // ============================================================================
+  // 📋 35-LEADS AUTO-SHIFT QUEUE & COMPLETED LEADS SWITCHER
+  // ============================================================================
+  function createQueueToolbar() {
+    if (document.getElementById('novaQueueSwitcherBar')) return;
+
+    const bar = document.createElement('div');
+    bar.id = 'novaQueueSwitcherBar';
+    bar.style.cssText = 'position:fixed; bottom:18px; right:20px; z-index:9999; background:#0f172a; border:1px solid #334155; padding:8px 12px; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.4); display:flex; gap:8px; align-items:center; font-family:sans-serif; color:#fff; font-size:13px;';
+
+    bar.innerHTML = `
+      <span style="color:#94a3b8; font-weight:600; margin-right:4px;">⚡ Auto-Queue (35/Page):</span>
+      <button id="btnQueueActive" style="background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:600;">
+        🔥 Pending / New (<span id="countActiveLeads">0</span>)
+      </button>
+      <button id="btnQueueCompleted" style="background:#1e293b; color:#cbd5e1; border:1px solid #475569; padding:6px 12px; border-radius:8px; cursor:pointer; font-weight:600;">
+        ✅ Delivered / Categorized (<span id="countCompletedLeads">0</span>)
+      </button>
+      <button id="btnQueueAll" style="background:#1e293b; color:#cbd5e1; border:1px solid #475569; padding:6px 10px; border-radius:8px; cursor:pointer;">
+        All
+      </button>
+    `;
+
+    document.body.appendChild(bar);
+
+    document.getElementById('btnQueueActive').onclick = () => setQueueMode('active');
+    document.getElementById('btnQueueCompleted').onclick = () => setQueueMode('completed');
+    document.getElementById('btnQueueAll').onclick = () => setQueueMode('all');
+  }
+
+  function setQueueMode(mode) {
+    currentQueueMode = mode;
+    const btnA = document.getElementById('btnQueueActive');
+    const btnC = document.getElementById('btnQueueCompleted');
+    const btnAll = document.getElementById('btnQueueAll');
+    if (btnA && btnC && btnAll) {
+      btnA.style.background = mode === 'active' ? '#2563eb' : '#1e293b';
+      btnC.style.background = mode === 'completed' ? '#16a34a' : '#1e293b';
+      btnAll.style.background = mode === 'all' ? '#7c3aed' : '#1e293b';
+    }
+    applyQueueFilterAndPagination();
+  }
+
+  function isRowCategorized(tr) {
+    // चेक करें कि क्या इस रो की स्टेज 'New' से बदलकर कुछ और (Proposal Sent, Interested, आदि) कर दी गई है
+    const selects = tr.querySelectorAll('select');
+    for (const sel of selects) {
+      const val = (sel.value || '').trim().toLowerCase();
+      if (val && val !== 'new' && val !== 'unassigned' && val !== 'fresh' && val !== 'select' && val !== 'pending') {
+        return true;
+      }
+    }
+    const text = tr.innerText.toLowerCase();
+    if (text.includes('proposal sent') || text.includes('converted') || text.includes('closed') || text.includes('not interested')) {
+      return true;
+    }
+    return false;
+  }
+
+  function updateQueueBadgeCounts() {
+    const tbody = document.querySelector('table tbody');
+    if (!tbody) return;
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    let activeCount = 0;
+    let completedCount = 0;
+    rows.forEach(r => {
+      if (isRowCategorized(r)) completedCount++;
+      else activeCount++;
+    });
+    const elA = document.getElementById('countActiveLeads');
+    const elC = document.getElementById('countCompletedLeads');
+    if (elA) elA.textContent = activeCount;
+    if (elC) elC.textContent = completedCount;
+  }
+
+  function applyQueueFilterAndPagination() {
+    createQueueToolbar();
+    const tbody = document.querySelector('table tbody');
+    if (!tbody) return;
+
+    const allRows = Array.from(tbody.querySelectorAll('tr'));
+    if (allRows.length === 0) return;
+
+    updateQueueBadgeCounts();
+
+    if (currentQueueMode === 'all') {
+      allRows.forEach(r => r.style.display = '');
+      return;
+    }
+
+    let visibleCount = 0;
+    allRows.forEach(tr => {
+      const done = isRowCategorized(tr);
+      const shouldShow = (currentQueueMode === 'active') ? !done : done;
+
+      if (shouldShow && visibleCount < PAGE_SIZE_LIMIT) {
+        tr.style.display = '';
+        visibleCount++;
+      } else {
+        tr.style.display = 'none';
+      }
+    });
+  }
+
+  // पेज लोड होते ही सर्वर से डेटा लाएं और हर 3 सेकंड में लाइव सिंक चलाएं
+  window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      createQueueToolbar();
+      pullLeadsFromServer(true);
+    }, 800);
+  });
+
+  setInterval(() => pullLeadsFromServer(false), 3000);
 })();
 </script>
