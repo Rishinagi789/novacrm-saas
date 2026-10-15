@@ -2673,3 +2673,40 @@ window.addEventListener('DOMContentLoaded', () => UI.init());
   });
 })();
 </script>
+<script>
+// === REAL-TIME SUPABASE VERSION WATCHER (AUTO-REFRESHES TEAM SCREENS) ===
+(function() {
+  let knownVersion = 0;
+  let isUserTyping = false;
+
+  document.addEventListener('focusin', (e) => {
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) isUserTyping = true;
+  });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => { isUserTyping = false; }, 1200);
+  });
+
+  setInterval(async () => {
+    if (isUserTyping) return;
+    if (document.querySelector('.modal.active, .modal.open')) return;
+
+    try {
+      const res = await fetch('/api/live-version');
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data.version && knownVersion !== 0 && data.version > knownVersion) {
+        knownVersion = data.version;
+        // Team member made a change! Reload data silently:
+        if (typeof App !== 'undefined') {
+          if (typeof App.loadLeads === 'function') App.loadLeads();
+          if (typeof App.loadDashboard === 'function') App.loadDashboard();
+          else if (typeof App.init === 'function') App.init();
+        }
+      } else if (data.version && knownVersion === 0) {
+        knownVersion = data.version;
+      }
+    } catch (e) {}
+  }, 2500);
+})();
+</script>

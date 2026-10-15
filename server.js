@@ -12,6 +12,9 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const XLSX = require('xlsx');
 const initSqlJs = require('sql.js');
+
+let Pool = null;
+try { Pool = require('pg').Pool; } catch (e) {}
 let nodemailer = null;
 try { nodemailer = require('nodemailer'); } catch (e) {}
 
@@ -20,7 +23,22 @@ const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'nova_super_secret_jwt_key_2026_production';
 const MASTER_ADMIN_SECRET = process.env.MASTER_ADMIN_SECRET || 'NOVA-MASTER-KEY-9988';
 const DB_FILE = path.join(__dirname, 'novacrm_production.sqlite');
-const MASTER_LEADS_FILE = path.join(__dirname, 'master_shared_leads.json');
+const MASTER_TEAM_DB = path.join(__dirname, 'master_team_data.json');
+
+// ================= SUPABASE CLOUD POSTGRES CONNECTION =================
+const SUPABASE_DB_URL = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
+let pgPool = null;
+if (Pool && SUPABASE_DB_URL) {
+  pgPool = new Pool({
+    connectionString: SUPABASE_DB_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+}
+
+let sqlDb = null;
+let SQL_ENGINE = null;
+let currentDbVersion = Date.now();
+let isSavingToCloud = false;
 
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
@@ -82,13 +100,84 @@ function fetchUrlBuffer(targetUrl, maxRedirects = 8) {
   });
 }
 
-let sqlDb = null;
+// ================= CLOUD SYNC & PERSISTENCE FUNCTIONS =================
+async function initSupabaseStorage() {
+  if (!pgPool) {
+    console.log('ℹ️ No DATABASE_URL found. Using local SQLite file only.');
+    return null;
+  }
+  try {
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS novacrm_cloud_sync (
+        id INTEGER PRIMARY KEY,
+        db_base64 TEXT NOT NULL,
+        version_ts BIGINT NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    const res = await pgPool.query('SELECT db_base64, version_ts FROM novacrm_cloud_sync WHERE id = 1');
+    if (res.rows.length > 0 && res.rows[0].db_base64) {
+      currentDbVersion = Number(res.rows[0].version_ts) || Date.now();
+      console.log('☁️ Loaded latest CRM database from Supabase Cloud!');
+      return Buffer.from(res.rows[0].db_base64, 'base64');
+    }
+  } catch (err) {
+    console.error('⚠️ Supabase Init Error:', err.message);
+  }
+  return null;
+}
+
+async function pushDbToSupabase(buffer, versionTs) {
+  if (!pgPool) return;
+  isSavingToCloud = true;
+  try {
+    const base64Data = buffer.toString('base64');
+    await pgPool.query(`
+      INSERT INTO novacrm_cloud_sync (id, db_base64, version_ts, updated_at)
+      VALUES (1, $1, $2, NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        db_base64 = EXCLUDED.db_base64,
+        version_ts = EXCLUDED.version_ts,
+        updated_at = NOW();
+    `, [base64Data, versionTs]);
+  } catch (err) {
+    console.error('⚠️ Supabase Push Error:', err.message);
+  } finally {
+    isSavingToCloud = false;
+  }
+}
+
+// Check if another laptop/instance updated Supabase
+async function pullLatestFromSupabaseIfNewer() {
+  if (!pgPool || isSavingToCloud || !SQL_ENGINE) return;
+  try {
+    const res = await pgPool.query('SELECT version_ts FROM novacrm_cloud_sync WHERE id = 1');
+    if (res.rows.length > 0) {
+      const remoteVer = Number(res.rows[0].version_ts) || 0;
+      if (remoteVer > currentDbVersion) {
+        const fullRes = await pgPool.query('SELECT db_base64, version_ts FROM novacrm_cloud_sync WHERE id = 1');
+        if (fullRes.rows.length > 0 && fullRes.rows[0].db_base64) {
+          const buf = Buffer.from(fullRes.rows[0].db_base64, 'base64');
+          sqlDb = new SQL_ENGINE.Database(buf);
+          fs.writeFileSync(DB_FILE, buf);
+          currentDbVersion = Number(fullRes.rows[0].version_ts);
+          console.log('🔄 Synced latest team changes from Supabase Cloud!');
+        }
+      }
+    }
+  } catch (e) {}
+}
+
+setInterval(pullLatestFromSupabaseIfNewer, 3000);
 
 function persistDb() {
   if (!sqlDb) return;
   try {
     const data = sqlDb.export();
-    fs.writeFileSync(DB_FILE, Buffer.from(data));
+    const buf = Buffer.from(data);
+    fs.writeFileSync(DB_FILE, buf);
+    currentDbVersion = Date.now();
+    pushDbToSupabase(buf, currentDbVersion);
   } catch (e) {
     console.error('DB Persist Error:', e.message);
   }
@@ -283,13 +372,17 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [decoded.tenantId]);
+    let tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [decoded.tenantId]);
+    // Fallback to primary workspace so all team members share the same workspace seamlessly
+    if (!tenant) {
+      tenant = queryOne('SELECT * FROM tenants ORDER BY ROWID ASC LIMIT 1');
+    }
     if (!tenant) return res.status(401).json({ error: 'Workspace not found' });
 
     const msLeft = new Date(tenant.access_end).getTime() - Date.now();
     const daysLeft = Math.ceil(msLeft / 86400000);
 
-    req.user = decoded;
+    req.user = { ...decoded, tenantId: tenant.id };
     req.tenant = { ...tenant, daysLeft };
     next();
   } catch (e) {
@@ -304,6 +397,11 @@ function masterAdminMiddleware(req, res, next) {
   }
   next();
 }
+
+// Live Version Check Endpoint for Real-Time Team Sync
+app.get('/api/live-version', (req, res) => {
+  res.json({ version: currentDbVersion });
+});
 
 app.get('/api/master/tenants', masterAdminMiddleware, (req, res) => {
   const rows = queryAll(`
@@ -452,6 +550,7 @@ app.get('/api/workspace/status', authMiddleware, (req, res) => {
     networkUrls: getLocalNetworkUrls(),
     teamList,
     followups,
+    version: currentDbVersion,
     stats: {
       leadCount, totalValue, wonValue, wonCount, qualifiedCount, empCount,
       eventCount: followups.length, stageBreakdown, sourceBreakdown, recentLeads
@@ -498,7 +597,7 @@ app.get('/api/leads', authMiddleware, (req, res) => {
   const total = (queryOne(`SELECT COUNT(*) as c FROM leads ${where}`, params) || { c: 0 }).c;
   const rows = queryAll(`SELECT * FROM leads ${where} ORDER BY ROWID ASC LIMIT ? OFFSET ?`, [...params, limit, offset]);
 
-  res.json({ leads: rows, total, page, totalPages: Math.ceil(total / limit) || 1 });
+  res.json({ leads: rows, total, page, totalPages: Math.ceil(total / limit) || 1, version: currentDbVersion });
 });
 
 app.get('/api/leads/:id', authMiddleware, (req, res) => {
@@ -630,7 +729,7 @@ app.post('/api/leads/:id/quick-update', authMiddleware, (req, res) => {
     JSON.stringify(history), qualBy,
     nextAddress, nextLinks, nextOwner, nextDealVal,
     lead.id, req.tenant.id
-  ]);
+  ], true);
 
   runSql('DELETE FROM calendar_events WHERE lead_id = ? AND tenant_id = ?', [lead.id, req.tenant.id], true);
   if (nextFollowReq === 'Required' && nextFollowDate) {
@@ -646,7 +745,7 @@ app.post('/api/leads/:id/quick-update', authMiddleware, (req, res) => {
   }
 
   const updated = queryOne('SELECT * FROM leads WHERE id = ? AND tenant_id = ?', [lead.id, req.tenant.id]);
-  res.json({ success: true, lead: updated });
+  res.json({ success: true, lead: updated, version: currentDbVersion });
 });
 
 app.post('/api/leads/bulk-assign', authMiddleware, (req, res) => {
@@ -1008,11 +1107,6 @@ app.post('/api/subscriptions/upgrade-1yr', authMiddleware, (req, res) => {
   res.json({ success: true, validUntil });
 });
 
-// ==========================================
-// 🌐 CLEAN MASTER TEAM SYNC ROUTE (NO DUPLICATES)
-// ==========================================
-const MASTER_TEAM_DB = path.join(__dirname, 'master_team_data.json');
-
 app.get('/api/team-sync-master', (req, res) => {
   try {
     if (!fs.existsSync(MASTER_TEAM_DB)) {
@@ -1029,7 +1123,6 @@ app.post('/api/team-sync-master', express.json({ limit: '50mb' }), (req, res) =>
   try {
     const { leads } = req.body;
     if (!Array.isArray(leads)) return res.status(400).json({ error: 'Invalid data' });
-    
     const payload = { leads: leads, updatedAt: Date.now() };
     fs.writeFileSync(MASTER_TEAM_DB, JSON.stringify(payload), 'utf8');
     res.json({ success: true, updatedAt: payload.updatedAt });
@@ -1038,19 +1131,28 @@ app.post('/api/team-sync-master', express.json({ limit: '50mb' }), (req, res) =>
   }
 });
 
-initSqlJs().then((SQL) => {
-  if (fs.existsSync(DB_FILE)) {
+initSqlJs().then(async (SQL) => {
+  SQL_ENGINE = SQL;
+  const cloudBuffer = await initSupabaseStorage();
+
+  if (cloudBuffer) {
+    sqlDb = new SQL.Database(cloudBuffer);
+    fs.writeFileSync(DB_FILE, cloudBuffer);
+  } else if (fs.existsSync(DB_FILE)) {
     const fileBuffer = fs.readFileSync(DB_FILE);
     sqlDb = new SQL.Database(fileBuffer);
+    // Upload initial local database to Supabase Cloud!
+    await pushDbToSupabase(fileBuffer, currentDbVersion);
   } else {
     sqlDb = new SQL.Database();
   }
+
   sqlDb.run(SCHEMA_SQL);
   ensureAllColumnsAndTables();
 
   const netUrls = getLocalNetworkUrls();
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ NovaCRM + HRMS Server v7 running!`);
+    console.log(`✅ NovaCRM + HRMS Server v7 (Supabase Cloud Synced) running!`);
     console.log(`💻 On this PC: http://localhost:${PORT}`);
     if (netUrls.length) console.log(`🌐 Share on Wi-Fi / Office LAN: ${netUrls[0]}`);
     console.log(`🔒 Hidden Master Admin Portal: http://localhost:${PORT}/master-admin.html`);
