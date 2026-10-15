@@ -2347,3 +2347,40 @@ window.addEventListener('DOMContentLoaded', () => UI.init());
 </script>
 </body>
 </html>
+<script>
+// === LIVE TEAM AUTO-SYNC (HAR 5 SECOND MEIN UPDATE) ===
+(function() {
+  let typingTimer = null;
+  let isUserBusy = false;
+
+  // Jab aap ya team member kuch type ya select kar rahe hon, tab refresh rokein
+  document.addEventListener('focusin', (e) => {
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) isUserBusy = true;
+  });
+  document.addEventListener('focusout', () => {
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => { isUserBusy = false; }, 1500);
+  });
+
+  // Jab bhi koi dropdown (Stage / Follow-up) ya Date change ho, turant server par bhejein
+  document.addEventListener('change', () => {
+    setTimeout(() => {
+      if (typeof App !== 'undefined' && typeof App.saveState === 'function') App.saveState();
+    }, 300);
+  });
+
+  // Har 5 second mein team ke changes screen par layein
+  setInterval(async () => {
+    if (isUserBusy) return;
+    if (document.querySelector('.modal.open, .modal.active, [style*="display: block"], [style*="display: flex"]')) return;
+
+    try {
+      if (typeof App !== 'undefined') {
+        if (typeof App.loadLeads === 'function') await App.loadLeads();
+        else if (typeof App.fetchLeads === 'function') await App.fetchLeads();
+        else if (typeof App.init === 'function' && localStorage.getItem('nova_token')) await App.loadData?.();
+      }
+    } catch (e) {}
+  }, 5000);
+})();
+</script>

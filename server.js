@@ -1031,6 +1031,30 @@ initSqlJs().then((SQL) => {
   ensureAllColumnsAndTables();
 
   const netUrls = getLocalNetworkUrls();
+  // === TEAM LIVE SYNC UPDATE ROUTE ===
+app.post('/api/leads/quick-sync-update', (req, res) => {
+  const { id, stage, status, notes, follow_up_date, custom_fields } = req.body;
+  if (!id) return res.status(400).json({ error: 'Lead ID required' });
+
+  db.get('SELECT * FROM leads WHERE id = ?', [id], (err, row) => {
+    if (err || !row) return res.status(404).json({ error: 'Lead not found' });
+
+    const newStage = stage !== undefined ? stage : row.stage;
+    const newStatus = status !== undefined ? status : row.status;
+    const newNotes = notes !== undefined ? notes : row.notes;
+    const newFollowUp = follow_up_date !== undefined ? follow_up_date : row.follow_up_date;
+    const newCustom = custom_fields !== undefined ? (typeof custom_fields === 'string' ? custom_fields : JSON.stringify(custom_fields)) : row.custom_fields;
+
+    db.run(
+      `UPDATE leads SET stage = ?, status = ?, notes = ?, follow_up_date = ?, custom_fields = ? WHERE id = ?`,
+      [newStage, newStatus, newNotes, newFollowUp, newCustom, id],
+      function (updateErr) {
+        if (updateErr) return res.status(500).json({ error: updateErr.message });
+        res.json({ success: true });
+      }
+    );
+  });
+});
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ NovaCRM + HRMS Server v7 running!`);
     console.log(`💻 On this PC: http://localhost:${PORT}`);
