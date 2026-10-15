@@ -1057,49 +1057,64 @@ app.post('/api/leads/quick-sync-update', (req, res) => {
     );
   });
 });
-// ==========================================
-// 🌐 GLOBAL SHARED TEAM WORKSPACE SYNC API (NO DB VARIABLE NEEDED)
-// ==========================================
-const fsSyncTeam = require('fs');
-const pathSyncTeam = require('path');
-const TEAM_SYNC_FILE = pathSyncTeam.join(__dirname, 'shared_team_leads.json');
+// ============================================================================
+// 🌐 MASTER BACKEND TEAM SYNC ENGINE (SHARES ALL LEADS ACROSS ALL TEAM IDS)
+// ============================================================================
+const fsMasterSync = require('fs');
+const pathMasterSync = require('path');
+const MASTER_LEADS_FILE = pathMasterSync.join(__dirname, 'master_shared_leads.json');
 
-// 1. सभी टीम मेंबर्स के लिए एक ही कॉमन लीड्स लिस्ट भेजें
-app.get('/api/team-sync/leads', (req, res) => {
+function getMasterLeads() {
   try {
-    if (!fsSyncTeam.existsSync(TEAM_SYNC_FILE)) {
-      return res.json({ leads: [], updated_at: null });
+    if (fsMasterSync.existsSync(MASTER_LEADS_FILE)) {
+      const data = JSON.parse(fsMasterSync.readFileSync(MASTER_LEADS_FILE, 'utf8') || '{}');
+      if (Array.isArray(data.leads)) return data;
     }
-    const raw = fsSyncTeam.readFileSync(TEAM_SYNC_FILE, 'utf8');
-    const data = JSON.parse(raw || '{}');
-    res.json({
-      leads: Array.isArray(data.leads) ? data.leads : [],
-      updated_at: data.updated_at || null,
-      updated_by: data.updated_by || 'team'
-    });
+  } catch (e) {}
+  return { leads: null, updated_at: 0 };
+}
+
+function saveMasterLeads(leadsArray) {
+  try {
+    const payload = { leads: leadsArray, updated_at: Date.now() };
+    fsMasterSync.writeFileSync(MASTER_LEADS_FILE, JSON.stringify(payload), 'utf8');
+    return payload;
   } catch (e) {
-    res.json({ leads: [], updated_at: null });
+    return { leads: leadsArray, updated_at: Date.now() };
   }
+}
+
+// 1. Direct Sync Endpoints for Frontend
+app.get('/api/master-sync', (req, res) => {
+  res.json(getMasterLeads());
 });
 
-// 2. कोई भी टीम मेंबर अपलोड, डिलीट या एडिट करे तो सबके लिए सेव करें
-app.post('/api/team-sync/leads', express.json({ limit: '50mb' }), (req, res) => {
-  try {
-    const { leads, user } = req.body;
-    if (!Array.isArray(leads)) return res.status(400).json({ error: 'Invalid leads array' });
+app.post('/api/master-sync', express.json({ limit: '50mb' }), (req, res) => {
+  const { leads, action, leadUpdate, leadId } = req.body;
 
-    const now = new Date().toISOString();
-    const payload = {
-      leads: leads,
-      updated_at: now,
-      updated_by: user || 'team_member'
-    };
+  let current = getMasterLeads().leads || [];
 
-    fsSyncTeam.writeFileSync(TEAM_SYNC_FILE, JSON.stringify(payload), 'utf8');
-    res.json({ success: true, count: leads.length, updated_at: now });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+  if (action === 'replace_all' && Array.isArray(leads)) {
+    // Jab koi nayi sheet import kare ya delete all kare
+    current = leads;
+  } else if (action === 'update_one' && leadUpdate) {
+    // Jab koi team member kisi ek lead ka stage, note, follow-up badle
+    const targetId = String(leadUpdate.id || leadId);
+    let found = false;
+    current = current.map(item => {
+      if (String(item.id) === targetId || (item.company && item.company === leadUpdate.company && item.phone === leadUpdate.phone)) {
+        found = true;
+        return { ...item, ...leadUpdate };
+      }
+      return item;
+    });
+    if (!found && leadUpdate.id) current.unshift(leadUpdate);
+  } else if (action === 'delete_one' && leadId !== undefined) {
+    current = current.filter(item => String(item.id) !== String(leadId));
   }
+
+  const saved = saveMasterLeads(current);
+  res.json({ success: true, updated_at: saved.updated_at, count: current.length });
 });
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ NovaCRM + HRMS Server v7 running!`);

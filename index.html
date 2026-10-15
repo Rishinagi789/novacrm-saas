@@ -2349,277 +2349,261 @@ window.addEventListener('DOMContentLoaded', () => UI.init());
 </html>
 <script>
 // ============================================================================
-// 🚀 NOVACRM: FULL-PAGE BATCH AUTO-SHIFT + REAL-TIME TEAM SYNC (NO FLOATING BAR)
+// 🚀 NOVACRM: REAL BACKEND SYNC + 35-BATCH AUTO-SHIFT + UI CLEANUP
 // ============================================================================
 (function() {
-  let lastServerTimestamp = null;
-  let isApplyingRemote = false;
-  let isUserTyping = false;
-  let viewMode = 'active'; // 'active' = current working batch, 'completed' = finished batches
+  const BATCH_SIZE = 35;
+  let showCompletedBatches = false;
+  let lastSyncTime = 0;
+  let isSyncing = false;
+  let masterAllLeads = []; // Asli poori leads list (335+ leads)
 
-  // 1. Purana niche wala kaala floating box (Auto-Queue) turant aur hamesha ke liye hatayein
-  function killOldFloatingBar() {
+  // 1. UI CLEANUP: Top "Share CRM" ko Settings mein bhejna aur extra "Import" hatana
+  function cleanUpInterface() {
+    // Niche wala purana floating bar hatayein (agar kahin bacha ho)
     const oldBar = document.getElementById('novaQueueSwitcherBar');
     if (oldBar) oldBar.remove();
-    document.querySelectorAll('div').forEach(el => {
-      if (el.innerText && el.innerText.includes('Auto-Queue (35/Page)') && el.style.position === 'fixed') {
-        el.remove();
+
+    // Top Header se "Share CRM" button chhupayein aur Settings mein dikhayein
+    document.querySelectorAll('button, a').forEach(el => {
+      const txt = (el.innerText || '').trim();
+
+      // Top header ka Share CRM button hide karein
+      if (txt.includes('Share CRM') && !el.classList.contains('moved-to-settings')) {
+        const isTopBar = el.closest('header') || el.parentElement?.innerText.includes('New lead');
+        if (isTopBar) {
+          el.style.display = 'none';
+          window.__novaShareBtnAction = () => el.click();
+        }
+      }
+
+      // Dashboard ke "Leads Overview" ke andar wala extra "Import" button hamesha ke liye hatayein
+      if (txt.includes('Import') && el.parentElement && el.parentElement.innerText.includes('All Leads')) {
+        el.style.display = 'none';
       }
     });
-  }
-  killOldFloatingBar();
-  setInterval(killOldFloatingBar, 500);
 
-  // 2. LocalStorage aur App State se Leads padhna aur likhna
-  function getLocalLeadsKey() {
-    const keys = Object.keys(localStorage);
-    for (const k of keys) {
-      if (k.toLowerCase().includes('lead') || k.toLowerCase().includes('crm') || k.toLowerCase().includes('nova')) {
-        try {
-          const val = JSON.parse(localStorage.getItem(k));
-          if (Array.isArray(val) || (val && Array.isArray(val.leads))) return k;
-        } catch (e) {}
+    // Agar user Settings page par hai, toh wahan "Share CRM" button dikhayein
+    const headings = Array.from(document.querySelectorAll('h1, h2, h3'));
+    const settingsHeading = headings.find(h => (h.innerText || '').trim() === 'Settings');
+    if (settingsHeading && settingsHeading.parentElement && !document.getElementById('settingsShareCrmBtn')) {
+      const shareBtn = document.createElement('button');
+      shareBtn.id = 'settingsShareCrmBtn';
+      shareBtn.className = 'moved-to-settings';
+      shareBtn.innerHTML = '🌐 Share CRM & Invite Links';
+      shareBtn.style.cssText = 'margin: 12px 0; background:#2563eb; color:#fff; border:none; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px;';
+      shareBtn.onclick = () => {
+        if (window.__novaShareBtnAction) window.__novaShareBtnAction();
+      };
+      settingsHeading.insertAdjacentElement('afterend', shareBtn);
+    }
+  }
+
+  // 2. Check karein ki kya ek lead par kaam ho chuka hai (Stage != 'New')
+  function isLeadCompleted(lead) {
+    if (!lead) return false;
+    const st = String(lead.stage || lead.status || 'New').trim().toLowerCase();
+    return st !== '' && st !== 'new' && st !== 'fresh' && st !== 'unassigned';
+  }
+
+  // 3. 35-35 Leads ke Batches banana (Jab poori 35 complete hon tabhi shift ho!)
+  function computeBatches(allLeadsList) {
+    if (!Array.isArray(allLeadsList)) return { activeList: [], completedList: [] };
+
+    const activeList = [];
+    const completedList = [];
+
+    for (let i = 0; i < allLeadsList.length; i += BATCH_SIZE) {
+      const batch = allLeadsList.slice(i, i + BATCH_SIZE);
+      // Jab tak is 35 ke batch mein 1 bhi lead 'New' hai, poora batch Active rahega!
+      // Jaise hi 35 ki 35 leads ka stage badal jayega, poora batch Completed mein jayega!
+      const isFullBatchDone = batch.length > 0 && batch.every(l => isLeadCompleted(l));
+
+      if (isFullBatchDone) {
+        completedList.push(...batch);
+      } else {
+        activeList.push(...batch);
       }
     }
-    return 'novacrm_leads';
+
+    return { activeList, completedList };
   }
 
-  function readAppLeads() {
-    if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) return window.leads;
+  // 4. App ke andar Leads Array ko dhoondhna aur update karna
+  function getAppLeadsArray() {
     if (typeof App !== 'undefined' && Array.isArray(App.leads)) return App.leads;
+    if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) return window.leads;
     if (typeof state !== 'undefined' && Array.isArray(state.leads)) return state.leads;
-
-    const key = getLocalLeadsKey();
-    try {
-      const raw = JSON.parse(localStorage.getItem(key) || '[]');
-      return Array.isArray(raw) ? raw : (raw.leads || []);
-    } catch (e) {
-      return [];
-    }
+    return null;
   }
 
-  function refreshUIWithoutHidingRows() {
-    if (typeof App !== 'undefined') {
+  function applyLeadsToAppUI(fullLeadsArray) {
+    masterAllLeads = fullLeadsArray;
+    const { activeList, completedList } = computeBatches(masterAllLeads);
+    const listToDisplay = showCompletedBatches ? completedList : activeList;
+
+    if (typeof App !== 'undefined' && Array.isArray(App.leads)) {
+      App.leads = listToDisplay;
       if (typeof App.renderLeads === 'function') App.renderLeads();
       else if (typeof App.render === 'function') App.render();
-      else if (typeof App.loadLeads === 'function') App.loadLeads();
-    } else if (typeof renderLeads === 'function') {
-      renderLeads();
-    } else if (typeof renderTable === 'function') {
-      renderTable();
+    } else if (typeof window.leads !== 'undefined') {
+      window.leads = listToDisplay;
+      if (typeof renderLeads === 'function') renderLeads();
+      else if (typeof renderTable === 'function') renderTable();
     }
-    setTimeout(managePageBatchesAndButtons, 100);
+
+    updateBatchToggleButtons(activeList.length, completedList.length);
   }
 
-  function writeAppLeads(newLeads) {
-    isApplyingRemote = true;
-    try {
-      if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) window.leads = newLeads;
-      if (typeof App !== 'undefined' && Array.isArray(App.leads)) App.leads = newLeads;
-      if (typeof state !== 'undefined' && Array.isArray(state.leads)) state.leads = newLeads;
+  // 5. Upar Clean Button ("✅ Completed Batches" / "🔥 Active Queue") banana
+  function updateBatchToggleButtons(activeCount, completedCount) {
+    cleanUpInterface();
 
-      const key = getLocalLeadsKey();
-      try {
-        const existing = JSON.parse(localStorage.getItem(key) || '[]');
-        if (existing && !Array.isArray(existing) && typeof existing === 'object') {
-          existing.leads = newLeads;
-          localStorage.setItem(key, JSON.stringify(existing));
-        } else {
-          localStorage.setItem(key, JSON.stringify(newLeads));
-        }
-      } catch (e) {
-        localStorage.setItem(key, JSON.stringify(newLeads));
-      }
-
-      refreshUIWithoutHidingRows();
-    } finally {
-      setTimeout(() => { isApplyingRemote = false; }, 300);
-    }
-  }
-
-  // 3. Team Sync: Server par save karna aur har 3 second mein team ke changes lana
-  async function pushLeadsToServer(leadsArray) {
-    if (isApplyingRemote) return;
-    try {
-      const res = await fetch('/api/team-sync/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leads: leadsArray,
-          user: localStorage.getItem('nova_user') || 'team'
-        })
-      });
-      const data = await res.json();
-      if (data.updated_at) lastServerTimestamp = data.updated_at;
-    } catch (err) {}
-  }
-
-  async function pullLeadsFromServer(force = false) {
-    if (isUserTyping && !force) return;
-    if (document.querySelector('.modal.active, .modal.open')) return;
-
-    try {
-      const res = await fetch('/api/team-sync/leads');
-      if (!res.ok) return;
-      const data = await res.json();
-
-      if (data.updated_at && data.updated_at !== lastServerTimestamp) {
-        lastServerTimestamp = data.updated_at;
-        const currentLeads = readAppLeads();
-        if (JSON.stringify(currentLeads) !== JSON.stringify(data.leads)) {
-          writeAppLeads(data.leads || []);
-        }
-      }
-    } catch (err) {}
-  }
-
-  const originalSetItem = localStorage.setItem.bind(localStorage);
-  localStorage.setItem = function(key, value) {
-    originalSetItem(key, value);
-    if (!isApplyingRemote && (key.toLowerCase().includes('lead') || key.toLowerCase().includes('crm') || key.toLowerCase().includes('nova'))) {
-      setTimeout(() => {
-        pushLeadsToServer(readAppLeads());
-        managePageBatchesAndButtons();
-      }, 200);
-    }
-  };
-
-  document.addEventListener('change', (e) => {
-    if (['SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
-      setTimeout(() => {
-        pushLeadsToServer(readAppLeads());
-        // Dhyan dein: Yahan hum single row ko gayab NAHI karenge, sirf check karenge ki kya POORA page complete ho gaya?
-        managePageBatchesAndButtons();
-      }, 350);
-    }
-  });
-
-  document.addEventListener('focusin', (e) => {
-    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) && e.target.type !== 'file') isUserTyping = true;
-  });
-  document.addEventListener('focusout', () => {
-    setTimeout(() => { isUserTyping = false; }, 1200);
-  });
-
-  // ============================================================================
-  // 📋 FULL-PAGE BATCH SHIFT LOGIC (JAB POORE PAGE KI LEADS COMPLETE HON TABHI SHIFT HO)
-  // ============================================================================
-  function isLeadWorked(tr) {
-    const selects = tr.querySelectorAll('select');
-    for (const sel of selects) {
-      const val = (sel.value || '').trim().toLowerCase();
-      if (sel.options && sel.options.length > 0) {
-        const optTexts = Array.from(sel.options).map(o => (o.text || '').toLowerCase());
-        if (optTexts.includes('new') || optTexts.includes('qualified') || optTexts.includes('proposal sent')) {
-          // Stage dropdown mila: agar 'new' nahi hai, matlab is lead par kaam ho chuka hai
-          if (val !== 'new' && val !== '') return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  function setupTopWorkedButtons() {
-    // 1. Dashboard ke "Leads Overview" mein Import button ko "Worked / Completed" banana
+    // Dashboard Leads Overview mein "All Leads" ke bagal mein button lagana
     const allBtns = Array.from(document.querySelectorAll('button, a'));
-    allBtns.forEach(btn => {
-      const txt = (btn.innerText || '').trim();
-      const parentTxt = btn.parentElement ? (btn.parentElement.innerText || '') : '';
-      if (txt.includes('Import') && parentTxt.includes('All Leads') && !btn.classList.contains('nova-worked-btn')) {
-        btn.classList.add('nova-worked-btn');
-        btn.removeAttribute('onclick');
-        btn.onclick = toggleWorkedMode;
-      }
-    });
+    const allLeadsBtn = allBtns.find(b => (b.innerText || '').includes('All Leads ('));
+    if (allLeadsBtn && allLeadsBtn.parentElement && !document.getElementById('dashBatchToggleBtn')) {
+      const btn = document.createElement('button');
+      btn.id = 'dashBatchToggleBtn';
+      btn.className = 'nova-batch-toggle-btn';
+      btn.style.cssText = 'margin-right:8px; padding:6px 14px; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px;';
+      btn.onclick = (e) => {
+        e.preventDefault();
+        showCompletedBatches = !showCompletedBatches;
+        applyLeadsToAppUI(masterAllLeads);
+      };
+      allLeadsBtn.parentElement.insertBefore(btn, allLeadsBtn);
+    }
 
-    // 2. Leads Page ke upar Stage filter tabs (All, New, Contacted... Lost) ke aage button lagana
+    // Leads Page par "Lost" tab ke bagal mein button lagana
     const lostTab = allBtns.find(b => (b.innerText || '').trim() === 'Lost');
-    if (lostTab && lostTab.parentElement && !lostTab.parentElement.querySelector('.nova-worked-btn')) {
-      const workedTab = document.createElement('button');
-      workedTab.className = lostTab.className + ' nova-worked-btn';
-      workedTab.style.cssText = 'margin-left:auto; background:#f8fafc; color:#0f172a; border:1px solid #cbd5e1; padding:6px 14px; border-radius:8px; font-weight:600; cursor:pointer;';
-      workedTab.innerHTML = '✅ Worked / Completed Batches';
-      workedTab.onclick = toggleWorkedMode;
-      lostTab.parentElement.appendChild(workedTab);
-    }
-  }
-
-  function toggleWorkedMode(e) {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    viewMode = (viewMode === 'completed') ? 'active' : 'completed';
-    managePageBatchesAndButtons();
-  }
-
-  function managePageBatchesAndButtons() {
-    killOldFloatingBar();
-    setupTopWorkedButtons();
-
-    const tbody = document.querySelector('table tbody');
-    if (!tbody) return;
-
-    const allRows = Array.from(tbody.querySelectorAll('tr'));
-    if (allRows.length === 0) return;
-
-    // Pehle saari rows ko normal visible rakhein (koi bhi row beech mein gayab nahi hogi!)
-    allRows.forEach(r => r.style.display = '');
-
-    // Page capacity (35 leads per batch/page) ke hisaab se batches banayein
-    const BATCH_SIZE = 35;
-    let completedBatchesRows = [];
-    let activeBatchesRows = [];
-
-    for (let i = 0; i < allRows.length; i += BATCH_SIZE) {
-      const batch = allRows.slice(i, i + BATCH_SIZE);
-      // Check karein: Kya is batch (page) ki SAARI (100%) leads par kaam ho chuka hai?
-      const isEntireBatchComplete = batch.length > 0 && batch.every(tr => isLeadWorked(tr));
-
-      if (isEntireBatchComplete) {
-        completedBatchesRows.push(...batch);
-      } else {
-        activeBatchesRows.push(...batch);
-      }
+    if (lostTab && lostTab.parentElement && !document.getElementById('leadsBatchToggleBtn')) {
+      const btn = document.createElement('button');
+      btn.id = 'leadsBatchToggleBtn';
+      btn.className = 'nova-batch-toggle-btn';
+      btn.style.cssText = 'margin-left:auto; padding:6px 14px; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px;';
+      btn.onclick = (e) => {
+        e.preventDefault();
+        showCompletedBatches = !showCompletedBatches;
+        applyLeadsToAppUI(masterAllLeads);
+      };
+      lostTab.parentElement.appendChild(btn);
     }
 
-    // Button ka text aur style update karein
-    document.querySelectorAll('.nova-worked-btn').forEach(btn => {
-      if (viewMode === 'completed') {
-        btn.innerHTML = `⬅️ Back to Active Leads (${activeBatchesRows.length})`;
-        btn.style.background = '#16a34a';
+    // Button ka text aur rang update karein
+    document.querySelectorAll('.nova-batch-toggle-btn').forEach(btn => {
+      if (showCompletedBatches) {
+        btn.innerHTML = `⬅️ Active Leads Queue (${activeCount})`;
+        btn.style.background = '#2563eb';
         btn.style.color = '#ffffff';
-        btn.style.borderColor = '#16a34a';
+        btn.style.border = '1px solid #2563eb';
       } else {
-        btn.innerHTML = `✅ Completed Batches (${completedBatchesRows.length})`;
-        btn.style.background = '#ffffff';
+        btn.innerHTML = `✅ Completed Batches (${completedCount})`;
+        btn.style.background = '#f8fafc';
         btn.style.color = '#0f172a';
         btn.style.border = '1px solid #cbd5e1';
       }
     });
-
-    // Agar koi batch poora 100% khatam ho chuka hai, tabhi usey Completed mein bhejein aur agla batch dikhayein
-    if (viewMode === 'active') {
-      completedBatchesRows.forEach(tr => tr.style.display = 'none');
-      activeBatchesRows.forEach(tr => tr.style.display = '');
-    } else {
-      activeBatchesRows.forEach(tr => tr.style.display = 'none');
-      completedBatchesRows.forEach(tr => tr.style.display = '');
-    }
   }
 
+  // 6. REAL-TIME NETWORK INTERCEPTOR (Fetch API ko hook karna taaki har change team ko dikhe)
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async function(url, options = {}) {
+    const response = await originalFetch(url, options);
+
+    try {
+      const urlStr = String(url);
+      const method = (options.method || 'GET').toUpperCase();
+
+      // Agar app ne leads mein koi change (POST/PUT/PATCH/DELETE) kiya hai
+      if (urlStr.includes('/api/leads') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        setTimeout(() => syncLocalStateToMasterServer(), 300);
+      }
+    } catch (e) {}
+
+    return response;
+  };
+
+  // Jab bhi user koi dropdown (Stage/Follow-up) ya Note badle, Master Server par sync karein
+  async function syncLocalStateToMasterServer() {
+    if (isSyncing) return;
+    const currentAppLeads = getAppLeadsArray();
+    if (!currentAppLeads) return;
+
+    // Agar hum Active mode mein hain, toh Completed batches ko wapas jod kar poori list banayein
+    const { activeList, completedList } = computeBatches(masterAllLeads);
+    let mergedList = currentAppLeads;
+
+    if (masterAllLeads.length > 0 && currentAppLeads.length < masterAllLeads.length) {
+      const updatedMap = new Map();
+      currentAppLeads.forEach(l => updatedMap.set(String(l.id || l.company + l.phone), l));
+      mergedList = masterAllLeads.map(orig => {
+        const key = String(orig.id || orig.company + orig.phone);
+        return updatedMap.has(key) ? updatedMap.get(key) : orig;
+      });
+    }
+
+    masterAllLeads = mergedList;
+
+    try {
+      const res = await originalFetch('/api/master-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'replace_all', leads: masterAllLeads })
+      });
+      const data = await res.json();
+      if (data.updated_at) lastSyncTime = data.updated_at;
+      applyLeadsToAppUI(masterAllLeads);
+    } catch (e) {}
+  }
+
+  // Har 3 second mein check karein ki kisi Team Member ne koi change kiya kya
+  async function pollMasterServerForTeamChanges(isInitial = false) {
+    // Agar user kisi input box mein type kar raha hai toh disturb na karein
+    if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+      if (!isInitial) return;
+    }
+
+    try {
+      const res = await originalFetch('/api/master-sync');
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data.leads && Array.isArray(data.leads) && data.leads.length > 0) {
+        if (data.updated_at > lastSyncTime || isInitial) {
+          isSyncing = true;
+          lastSyncTime = data.updated_at;
+          applyLeadsToAppUI(data.leads);
+          setTimeout(() => { isSyncing = false; }, 300);
+        }
+      } else if (isInitial) {
+        // Pehli baar agar server par master file khali hai, toh current leads upload kar dein
+        const current = getAppLeadsArray();
+        if (current && current.length > 0) {
+          masterAllLeads = [...current];
+          syncLocalStateToMasterServer();
+        }
+      }
+    } catch (e) {}
+  }
+
+  document.addEventListener('change', (e) => {
+    if (['SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+      setTimeout(syncLocalStateToMasterServer, 400);
+    }
+  });
+
   window.addEventListener('DOMContentLoaded', () => {
+    cleanUpInterface();
     setTimeout(() => {
-      killOldFloatingBar();
-      managePageBatchesAndButtons();
-      pullLeadsFromServer(true);
-    }, 500);
+      cleanUpInterface();
+      pollMasterServerForTeamChanges(true);
+    }, 1000);
   });
 
   setInterval(() => {
-    killOldFloatingBar();
-    setupTopWorkedButtons();
-    pullLeadsFromServer(false);
+    cleanUpInterface();
+    pollMasterServerForTeamChanges(false);
   }, 3000);
 })();
 </script>
