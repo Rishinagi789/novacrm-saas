@@ -20,6 +20,7 @@ const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'nova_super_secret_jwt_key_2026_production';
 const MASTER_ADMIN_SECRET = process.env.MASTER_ADMIN_SECRET || 'NOVA-MASTER-KEY-9988';
 const DB_FILE = path.join(__dirname, 'novacrm_production.sqlite');
+const MASTER_LEADS_FILE = path.join(__dirname, 'master_shared_leads.json');
 
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
@@ -39,7 +40,6 @@ const addDaysISO = (days, baseDate = new Date()) => {
   return d.toISOString();
 };
 
-// Detect Local Network IPv4 Address so other computers/phones on Wi-Fi/LAN can open the CRM
 function getLocalNetworkUrls() {
   const nets = os.networkInterfaces();
   const urls = [];
@@ -53,7 +53,6 @@ function getLocalNetworkUrls() {
   return urls;
 }
 
-// Binary/Text Downloader with Redirect Support for Google Sheets (.xlsx & .csv)
 function fetchUrlBuffer(targetUrl, maxRedirects = 8) {
   return new Promise((resolve, reject) => {
     const client = targetUrl.startsWith('https') ? https : http;
@@ -306,7 +305,6 @@ function masterAdminMiddleware(req, res, next) {
   next();
 }
 
-/* ================= MASTER ADMIN ROUTES ================= */
 app.get('/api/master/tenants', masterAdminMiddleware, (req, res) => {
   const rows = queryAll(`
     SELECT t.*,
@@ -366,7 +364,6 @@ app.post('/api/master/update-access', masterAdminMiddleware, (req, res) => {
   res.json({ success: true, accessEnd: newEnd });
 });
 
-/* ================= CLIENT & TEAM MEMBER AUTH ================= */
 app.post('/api/auth/login', (req, res) => {
   const { loginId, password } = req.body;
   if (!loginId || !password) return res.status(400).json({ error: 'Enter User ID/Email and Password' });
@@ -421,7 +418,6 @@ app.post('/api/auth/google-or-signup', (req, res) => {
   res.json({ token, user: { id: user.id, name: user.full_name, email: user.email, role: user.role }, tenant, requirePayment: planChoice === 'annual_1yr' });
 });
 
-/* ================= WORKSPACE STATUS & NETWORK SHARE URLS ================= */
 app.get('/api/workspace/status', authMiddleware, (req, res) => {
   const existingEmp = queryOne('SELECT COUNT(*) as c FROM employees WHERE tenant_id = ?', [req.tenant.id]);
   if (!existingEmp || existingEmp.c === 0) {
@@ -447,7 +443,6 @@ app.get('/api/workspace/status', authMiddleware, (req, res) => {
 
   const stageBreakdown = queryAll('SELECT stage, COUNT(*) as count, SUM(deal_value) as total FROM leads WHERE tenant_id = ? GROUP BY stage', [req.tenant.id]);
   const sourceBreakdown = queryAll('SELECT source, COUNT(*) as count FROM leads WHERE tenant_id = ? GROUP BY source', [req.tenant.id]);
-  // IMPORTANT: Order by ROWID ASC so the FIRST row of the uploaded sheet appears FIRST!
   const recentLeads = queryAll('SELECT * FROM leads WHERE tenant_id = ? ORDER BY ROWID ASC LIMIT 25', [req.tenant.id]);
   const teamList = queryAll('SELECT id, full_name, designation, role, email, phone, login_username FROM employees WHERE tenant_id = ? ORDER BY full_name ASC', [req.tenant.id]);
 
@@ -464,7 +459,6 @@ app.get('/api/workspace/status', authMiddleware, (req, res) => {
   });
 });
 
-// Save Custom Share URL or SMTP Email Configuration
 app.post('/api/workspace/share-settings', authMiddleware, (req, res) => {
   const { public_share_url, smtp_email, smtp_app_password } = req.body;
   runSql(`
@@ -482,7 +476,6 @@ app.post('/api/workspace/share-settings', authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
-/* ================= LEADS CRUD (ORDERED BY EXACT SHEET ORDER: ROWID ASC) ================= */
 app.get('/api/leads', authMiddleware, (req, res) => {
   const page = Math.max(1, parseInt(req.query.page || '1', 10));
   const limit = Math.min(500, Math.max(10, parseInt(req.query.limit || '50', 10)));
@@ -503,7 +496,6 @@ app.get('/api/leads', authMiddleware, (req, res) => {
   }
 
   const total = (queryOne(`SELECT COUNT(*) as c FROM leads ${where}`, params) || { c: 0 }).c;
-  // Ordered by ROWID ASC so Row 1 of Excel/Google Sheet is always shown at #1!
   const rows = queryAll(`SELECT * FROM leads ${where} ORDER BY ROWID ASC LIMIT ? OFFSET ?`, [...params, limit, offset]);
 
   res.json({ leads: rows, total, page, totalPages: Math.ceil(total / limit) || 1 });
@@ -671,7 +663,6 @@ app.post('/api/leads/bulk-assign', authMiddleware, (req, res) => {
   res.json({ success: true, count: ids.length });
 });
 
-/* ================= MULTI-SHEET GOOGLE SHEET FETCHER (RETURNS ALL SHEETS/TABS!) ================= */
 app.post('/api/leads/fetch-google-sheet', authMiddleware, async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'Please paste a Google Sheet link' });
@@ -687,7 +678,6 @@ app.post('/api/leads/fetch-google-sheet', authMiddleware, async (req, res) => {
     }
 
     const sheetId = idMatch[1];
-    // Try full .xlsx export first so ALL sheets/tabs in the Google Sheet are detected!
     const endpoints = [
       { type: 'xlsx', url: `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx` },
       { type: 'csv', url: `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}` },
@@ -712,13 +702,12 @@ app.post('/api/leads/fetch-google-sheet', authMiddleware, async (req, res) => {
       } catch (innerErr) {}
     }
 
-    throw new Error('This Google Sheet is Restricted! In Google Sheets, click "Share" (top right) -> change General Access to "Anyone with the link" -> then click Analyze.');
+    throw new Error('This Google Sheet is Restricted! In Google Sheets, click "Share" -> change General Access to "Anyone with the link".');
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-// Preserves Exact Sheet Order (Row 1 first -> Row N last)
 app.post('/api/leads/import-mapped', authMiddleware, (req, res) => {
   const { leads, source, assignTo } = req.body;
   if (!Array.isArray(leads) || leads.length === 0) return res.status(400).json({ error: 'No leads to import' });
@@ -793,7 +782,6 @@ app.post('/api/leads/bulk-delete', authMiddleware, (req, res) => {
   res.json({ success: true, deletedCount: ids.length });
 });
 
-/* ================= CALENDAR & FOLLOW-UPS API ================= */
 app.get('/api/calendar', authMiddleware, (req, res) => {
   const calEvents = queryAll('SELECT * FROM calendar_events WHERE tenant_id = ? ORDER BY start_at ASC', [req.tenant.id]);
   const leadFollowups = queryAll(`
@@ -822,7 +810,6 @@ app.delete('/api/calendar/:id', authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
-/* ================= MESSAGES & DIRECT EMAIL INVITE SENDER ================= */
 app.get('/api/messages', authMiddleware, (req, res) => {
   const messages = queryAll('SELECT * FROM messages WHERE tenant_id = ? ORDER BY sent_at DESC LIMIT 100', [req.tenant.id]);
   res.json({ messages });
@@ -863,7 +850,6 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
   res.json({ success: true, id, emailSentViaSmtp });
 });
 
-/* ================= TEAM + INVITE LOGIN ACCESS + HRMS PROFILE ================= */
 app.get('/api/team', authMiddleware, (req, res) => {
   const rows = queryAll('SELECT * FROM employees WHERE tenant_id = ? ORDER BY created_at DESC', [req.tenant.id]);
   const allLeads = queryAll('SELECT id, company, name, phone, stage, interest_level, talk_summary, deal_value, followup_date, owner_name, qualified_by FROM leads WHERE tenant_id = ? ORDER BY ROWID ASC', [req.tenant.id]);
@@ -1022,6 +1008,36 @@ app.post('/api/subscriptions/upgrade-1yr', authMiddleware, (req, res) => {
   res.json({ success: true, validUntil });
 });
 
+// ==========================================
+// 🌐 CLEAN MASTER TEAM SYNC ROUTE (NO DUPLICATES)
+// ==========================================
+const MASTER_TEAM_DB = path.join(__dirname, 'master_team_data.json');
+
+app.get('/api/team-sync-master', (req, res) => {
+  try {
+    if (!fs.existsSync(MASTER_TEAM_DB)) {
+      return res.json({ leads: [], updatedAt: 0 });
+    }
+    const content = fs.readFileSync(MASTER_TEAM_DB, 'utf8');
+    res.json(JSON.parse(content || '{"leads":[], "updatedAt":0}'));
+  } catch (e) {
+    res.json({ leads: [], updatedAt: 0 });
+  }
+});
+
+app.post('/api/team-sync-master', express.json({ limit: '50mb' }), (req, res) => {
+  try {
+    const { leads } = req.body;
+    if (!Array.isArray(leads)) return res.status(400).json({ error: 'Invalid data' });
+    
+    const payload = { leads: leads, updatedAt: Date.now() };
+    fs.writeFileSync(MASTER_TEAM_DB, JSON.stringify(payload), 'utf8');
+    res.json({ success: true, updatedAt: payload.updatedAt });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 initSqlJs().then((SQL) => {
   if (fs.existsSync(DB_FILE)) {
     const fileBuffer = fs.readFileSync(DB_FILE);
@@ -1033,123 +1049,7 @@ initSqlJs().then((SQL) => {
   ensureAllColumnsAndTables();
 
   const netUrls = getLocalNetworkUrls();
-  // === TEAM LIVE SYNC UPDATE ROUTE ===
-app.post('/api/leads/quick-sync-update', (req, res) => {
-  const { id, stage, status, notes, follow_up_date, custom_fields } = req.body;
-  if (!id) return res.status(400).json({ error: 'Lead ID required' });
-
-  db.get('SELECT * FROM leads WHERE id = ?', [id], (err, row) => {
-    if (err || !row) return res.status(404).json({ error: 'Lead not found' });
-
-    const newStage = stage !== undefined ? stage : row.stage;
-    const newStatus = status !== undefined ? status : row.status;
-    const newNotes = notes !== undefined ? notes : row.notes;
-    const newFollowUp = follow_up_date !== undefined ? follow_up_date : row.follow_up_date;
-    const newCustom = custom_fields !== undefined ? (typeof custom_fields === 'string' ? custom_fields : JSON.stringify(custom_fields)) : row.custom_fields;
-
-    db.run(
-      `UPDATE leads SET stage = ?, status = ?, notes = ?, follow_up_date = ?, custom_fields = ? WHERE id = ?`,
-      [newStage, newStatus, newNotes, newFollowUp, newCustom, id],
-      function (updateErr) {
-        if (updateErr) return res.status(500).json({ error: updateErr.message });
-        res.json({ success: true });
-      }
-    );
-  });
-});
-// ============================================================================
-// 🌐 MASTER BACKEND TEAM SYNC ENGINE (SHARES ALL LEADS ACROSS ALL TEAM IDS)
-// ============================================================================
-const fs = require('fs');
-const path = require('path');
-const dbFile = path.join(__dirname, 'master_team_data.json');
-
-function getMasterLeads() {
-  try {
-    if (fsMasterSync.existsSync(MASTER_LEADS_FILE)) {
-      const data = JSON.parse(fsMasterSync.readFileSync(MASTER_LEADS_FILE, 'utf8') || '{}');
-      if (Array.isArray(data.leads)) return data;
-    }
-  } catch (e) {}
-  return { leads: null, updated_at: 0 };
-}
-
-function saveMasterLeads(leadsArray) {
-  try {
-    const payload = { leads: leadsArray, updated_at: Date.now() };
-    fsMasterSync.writeFileSync(MASTER_LEADS_FILE, JSON.stringify(payload), 'utf8');
-    return payload;
-  } catch (e) {
-    return { leads: leadsArray, updated_at: Date.now() };
-  }
-}
-
-// 1. Direct Sync Endpoints for Frontend
-app.get('/api/master-sync', (req, res) => {
-  res.json(getMasterLeads());
-});
-
-app.post('/api/master-sync', express.json({ limit: '50mb' }), (req, res) => {
-  const { leads, action, leadUpdate, leadId } = req.body;
-
-  let current = getMasterLeads().leads || [];
-
-  if (action === 'replace_all' && Array.isArray(leads)) {
-    // Jab koi nayi sheet import kare ya delete all kare
-    current = leads;
-  } else if (action === 'update_one' && leadUpdate) {
-    // Jab koi team member kisi ek lead ka stage, note, follow-up badle
-    const targetId = String(leadUpdate.id || leadId);
-    let found = false;
-    current = current.map(item => {
-      if (String(item.id) === targetId || (item.company && item.company === leadUpdate.company && item.phone === leadUpdate.phone)) {
-        found = true;
-        return { ...item, ...leadUpdate };
-      }
-      return item;
-    });
-    if (!found && leadUpdate.id) current.unshift(leadUpdate);
-  } else if (action === 'delete_one' && leadId !== undefined) {
-    current = current.filter(item => String(item.id) !== String(leadId));
-  }
-
-  const saved = saveMasterLeads(current);
-  res.json({ success: true, updated_at: saved.updated_at, count: current.length });
-});
-// ==========================================
-// 🌐 100% FREE CLOUD TEAM SYNC ROUTE
-// ==========================================
-const fs = require('fs');
-const path = require('path');
-const dbFile = path.join(__dirname, 'master_team_data.json');
-
-// डेटा पढ़ना
-app.get('/api/team-sync-master', (req, res) => {
-  try {
-    if (!fs.existsSync(dbFile)) {
-      return res.json({ leads: [], updatedAt: 0 });
-    }
-    const content = fs.readFileSync(dbFile, 'utf8');
-    res.json(JSON.parse(content || '{"leads":[], "updatedAt":0}'));
-  } catch (e) {
-    res.json({ leads: [], updatedAt: 0 });
-  }
-});
-
-// डेटा सेव करना (कोई भी टीम मेंबर बदलेगा तो यहाँ सेव होगा)
-app.post('/api/team-sync-master', express.json({ limit: '50mb' }), (req, res) => {
-  try {
-    const { leads } = req.body;
-    if (!Array.isArray(leads)) return res.status(400).json({ error: 'Invalid data' });
-    
-    const payload = { leads: leads, updatedAt: Date.now() };
-    fs.writeFileSync(dbFile, JSON.stringify(payload), 'utf8');
-    res.json({ success: true, updatedAt: payload.updatedAt });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ NovaCRM + HRMS Server v7 running!`);
     console.log(`💻 On this PC: http://localhost:${PORT}`);
     if (netUrls.length) console.log(`🌐 Share on Wi-Fi / Office LAN: ${netUrls[0]}`);
