@@ -413,9 +413,6 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
           <input id="globalSearch" type="search" placeholder="Search company, contact no, notes…" oninput="UI.handleSearch(this.value)" />
         </div>
-        <button class="btn btn-ghost" onclick="UI.openShareCrmModal()" title="Share CRM Server & Invite Team">
-          🌐 Share CRM
-        </button>
         <button class="btn btn-ghost" onclick="UI.openImportModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>
           Import
@@ -434,7 +431,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 <!-- Notification Bell Popover -->
 <div id="notifPop" class="notif-pop hidden"></div>
 
-<!-- Small Near-Expiry Popup (Only shows when <=10 or <=5 days left) -->
+<!-- Small Near-Expiry Popup -->
 <div id="expiryPopup" class="expiry-popup hidden">
   <div style="display:flex;justify-content:space-between;align-items:center">
     <strong id="expPopTitle">⏳ Subscription Reminder</strong>
@@ -490,8 +487,11 @@ const API = {
     const res = await fetch(url, { ...opts, headers: { ...this.headers(), ...(opts.headers || {}) } });
     const text = await res.text();
     let data = {};
-    try { data = JSON.parse(text); } catch (e) { throw new Error('Please restart server in VS Code terminal (Ctrl+C then npm start)'); }
+    try { data = JSON.parse(text); } catch (e) { throw new Error('Server connection error. Please refresh.'); }
     if (!res.ok) throw new Error(data.error || 'Request failed');
+    if (data.version && typeof window.__updateKnownDbVersion === 'function') {
+      window.__updateKnownDbVersion(data.version);
+    }
     return data;
   }
 };
@@ -503,6 +503,7 @@ const UI = {
   currentPageLeads: [],
   teamMembers: [],
   leadFilter: { q: '', stage: '', owner: '', page: 1 },
+  showCompletedBatches: false,
   currentWorkbook: null,
   importState: { source: 'Excel', sheetNames: [], selectedSheet: '__ALL__', headers: [], rawRows: [], mapping: {} },
   hasShownStartupFollowupAlert: false,
@@ -548,8 +549,24 @@ const UI = {
     return 'stage-yellow';
   },
 
+  // 35-Lead Batch Splitter: Moves a 35-lead batch to Completed only when ALL 35 leads have Stage != 'New'
+  splitLeadsIntoBatches35(allLeads = []) {
+    const BATCH_SIZE = 35;
+    const activeList = [];
+    const completedList = [];
+    for (let i = 0; i < allLeads.length; i += BATCH_SIZE) {
+      const batch = allLeads.slice(i, i + BATCH_SIZE);
+      const isBatchDone = batch.length > 0 && batch.every(l => {
+        const st = String(l.stage || 'New').trim().toLowerCase();
+        return st !== '' && st !== 'new';
+      });
+      if (isBatchDone) completedList.push(...batch);
+      else activeList.push(...batch);
+    }
+    return { activeList, completedList };
+  },
+
   async init() {
-    // Check Magic Invite Auto-Login URL params (?invite_u=...&invite_p=...)
     const params = new URLSearchParams(window.location.search);
     const invU = params.get('invite_u');
     const invP = params.get('invite_p');
@@ -676,7 +693,6 @@ const UI = {
     }
   },
 
-  /* ==================== TODAY'S FOLLOW-UP NOTIFICATION POPUP & BELL ==================== */
   checkTodayFollowupStartupAlert() {
     if (this.hasShownStartupFollowupAlert) return;
     const followups = this.workspace?.followups || [];
@@ -746,7 +762,7 @@ const UI = {
     document.querySelectorAll('#nav .nav-item').forEach(b => b.classList.toggle('active', b.dataset.route === route));
     const meta = {
       dashboard: ['Dashboard', 'Double-click any Company Name to open full imported details, address, links & conversation history'],
-      leads: ['Leads', 'Leads are shown in exact sheet order (First row on top). Changes save automatically.'],
+      leads: ['Leads', 'Leads are shown in exact sheet order (First row on top). Changes sync across all team members automatically.'],
       pipeline: ['Pipeline', 'Drag and drop deals across stages: New, Contacted, Qualified, Proposal Sent, Negotiation, Won, Lost'],
       calendar: ['Calendar & Follow-up Schedule', 'Compact view of all scheduled client follow-ups and reminders'],
       messages: ['Messages', 'Send WhatsApp & Email messages directly to leads or team members'],
@@ -768,10 +784,9 @@ const UI = {
     else if (route === 'settings') this.renderSettings();
   },
 
-  /* ==================== SLEEK COMPACT LEADS TABLE ROW BUILDER ==================== */
   renderLeadTableRows(leads) {
     if (!leads || leads.length === 0) {
-      return `<tr><td colspan="7" style="text-align:center;padding:30px" class="muted">No leads found. Click <b>Import</b> or <b>+ New lead</b> in the top bar.</td></tr>`;
+      return `<tr><td colspan="7" style="text-align:center;padding:30px" class="muted">No leads in this view. Click <b>Import</b> or switch between Active / Completed Batches.</td></tr>`;
     }
 
     const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
@@ -835,6 +850,10 @@ const UI = {
   /* ==================== 1. DASHBOARD VIEW ==================== */
   async renderDashboard() {
     await this.refreshWorkspace();
+    const allData = await API.req('/api/leads?page=1&limit=1000');
+    const { activeList, completedList } = this.splitLeadsIntoBatches35(allData.leads || []);
+    const displayRows = (this.showCompletedBatches ? completedList : activeList).slice(0, 35);
+
     const { stats, followups } = this.workspace;
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayFollowups = (followups || []).filter(f => (f.followup_date || '').slice(0, 10) <= todayStr);
@@ -876,9 +895,11 @@ const UI = {
 
       <div class="card" style="margin-top:14px">
         <div class="card-head">
-          <h3>Leads Overview (Showing in Exact Sheet Order — First Entry on Top)</h3>
+          <h3>${this.showCompletedBatches ? `✅ Completed 35-Lead Batches (${completedList.length})` : `🔥 Active 35-Lead Batch Queue (${ displayRows.length } of ${activeList.length} Active)`}</h3>
           <span class="spacer"></span>
-          <button class="btn btn-sm" onclick="UI.openImportModal()">📥 Import</button>
+          <button class="btn btn-sm ${this.showCompletedBatches ? 'btn-primary' : ''}" onclick="UI.showCompletedBatches=!UI.showCompletedBatches;UI.renderDashboard()">
+            ${this.showCompletedBatches ? `⬅️ Back to Active Queue (${activeList.length})` : `✅ Completed Batches (${completedList.length})`}
+          </button>
           <button class="btn btn-sm btn-primary" onclick="UI.navigate('leads')">All Leads (${stats.leadCount.toLocaleString()}) →</button>
         </div>
         <div class="table-wrap">
@@ -895,7 +916,7 @@ const UI = {
               </tr>
             </thead>
             <tbody>
-              ${this.renderLeadTableRows(stats.recentLeads || [])}
+              ${this.renderLeadTableRows(displayRows)}
             </tbody>
           </table>
         </div>
@@ -907,16 +928,31 @@ const UI = {
   async renderLeads() {
     await this.refreshWorkspace();
     const f = this.leadFilter;
-    const data = await API.req(`/api/leads?page=${f.page}&limit=50&q=${encodeURIComponent(f.q)}&stage=${encodeURIComponent(f.stage)}&owner=${encodeURIComponent(f.owner)}`);
-    this.currentPageLeads = data.leads || [];
+    const data = await API.req(`/api/leads?page=1&limit=1000&q=${encodeURIComponent(f.q)}&stage=${encodeURIComponent(f.stage)}&owner=${encodeURIComponent(f.owner)}`);
+    const allMatching = data.leads || [];
+
+    const { activeList, completedList } = this.splitLeadsIntoBatches35(allMatching);
+    const workingPool = (f.stage === '' && f.q === '')
+      ? (this.showCompletedBatches ? completedList : activeList)
+      : allMatching;
+
+    const perPage = 35;
+    const totalPages = Math.max(1, Math.ceil(workingPool.length / perPage));
+    if (f.page > totalPages) f.page = 1;
+    const startIdx = (f.page - 1) * perPage;
+    this.currentPageLeads = workingPool.slice(startIdx, startIdx + perPage);
+
     const allSel = this.currentPageLeads.length > 0 && this.currentPageLeads.every(l => this.selectedLeadIds.has(l.id));
     const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
 
     const root = document.getElementById('viewRoot');
     root.innerHTML = `
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
-        <button class="btn btn-sm ${f.stage === '' ? 'btn-primary' : ''}" onclick="UI.filterLeadStage('')">All (${data.total.toLocaleString()})</button>
+        <button class="btn btn-sm ${f.stage === '' && !this.showCompletedBatches ? 'btn-primary' : ''}" onclick="UI.showCompletedBatches=false;UI.filterLeadStage('')">🔥 Active Queue (${activeList.length})</button>
         ${STAGES.map(s => `<button class="btn btn-sm ${f.stage === s ? 'btn-primary' : ''}" onclick="UI.filterLeadStage('${s}')">${s}</button>`).join('')}
+        <button class="btn btn-sm ${this.showCompletedBatches && f.stage === '' ? 'btn-primary' : ''}" style="margin-left:auto" onclick="UI.showCompletedBatches=!UI.showCompletedBatches;UI.leadFilter.stage='';UI.leadFilter.page=1;UI.renderLeads()">
+          ${this.showCompletedBatches ? `⬅️ Active Leads Queue (${activeList.length})` : `✅ Completed Batches (${completedList.length})`}
+        </button>
       </div>
 
       <div class="card">
@@ -935,7 +971,7 @@ const UI = {
             <button class="btn btn-sm btn-danger" onclick="UI.deleteSelectedLeads()">🗑️ Delete Selected (${this.selectedLeadIds.size})</button>
           ` : ''}
 
-          ${data.total > 0 ? `<button class="btn btn-sm btn-danger" style="margin-left:auto" onclick="UI.deleteAllLeads()">🗑️ Delete All (${data.total.toLocaleString()})</button>` : ''}
+          ${allMatching.length > 0 ? `<button class="btn btn-sm btn-danger" style="margin-left:auto" onclick="UI.deleteAllLeads()">🗑️ Delete All (${allMatching.length.toLocaleString()})</button>` : ''}
         </div>
 
         <div class="table-wrap">
@@ -954,16 +990,16 @@ const UI = {
               </tr>
             </thead>
             <tbody>
-              ${this.renderLeadTableRows(data.leads)}
+              ${this.renderLeadTableRows(this.currentPageLeads)}
             </tbody>
           </table>
         </div>
 
         <div class="card-head" style="border-top:1px solid var(--border);border-bottom:none">
-          <span class="muted sm">Page <b>${data.page}</b> of <b>${data.totalPages}</b> (${data.total.toLocaleString()} leads in exact top-to-bottom sheet order)</span>
+          <span class="muted sm">Batch Page <b>${f.page}</b> of <b>${totalPages}</b> (35 leads per batch — shifts to Completed automatically when all 35 are worked)</span>
           <span class="spacer"></span>
-          <button class="btn btn-sm" ${data.page <= 1 ? 'disabled' : ''} onclick="UI.leadFilter.page--;UI.renderLeads()">← Prev</button>
-          <button class="btn btn-sm" ${data.page >= data.totalPages ? 'disabled' : ''} onclick="UI.leadFilter.page++;UI.renderLeads()">Next →</button>
+          <button class="btn btn-sm" ${f.page <= 1 ? 'disabled' : ''} onclick="UI.leadFilter.page--;UI.renderLeads()">← Prev Batch</button>
+          <button class="btn btn-sm" ${f.page >= totalPages ? 'disabled' : ''} onclick="UI.leadFilter.page++;UI.renderLeads()">Next Batch →</button>
         </div>
       </div>
     `;
@@ -999,9 +1035,11 @@ const UI = {
           selectEl.className = `interest-dot-select ${this.getInterestBadgeClass(res.lead.interest_level)}`;
         }
       }
-      this.flashSaved('✓ Saved to Database');
+      this.flashSaved('✓ Synced with Team');
       await this.refreshWorkspace();
       if (this.route === 'pipeline') this.renderPipeline();
+      else if (this.route === 'dashboard' && patch.stage) this.renderDashboard();
+      else if (this.route === 'leads' && patch.stage) this.renderLeads();
     } catch (e) {
       alert('Failed to save update: ' + e.message);
     }
@@ -1186,7 +1224,7 @@ const UI = {
 
   /* ==================== 3. PIPELINE KANBAN VIEW ==================== */
   async renderPipeline() {
-    const data = await API.req('/api/leads?page=1&limit=500');
+    const data = await API.req('/api/leads?page=1&limit=1000');
     const leads = data.leads || [];
     const root = document.getElementById('viewRoot');
 
@@ -1445,11 +1483,10 @@ const UI = {
     const root = document.getElementById('viewRoot');
 
     root.innerHTML = `
-      <!-- Live CRM Sharing & Invite Banner -->
       <div class="card card-pad" style="margin-bottom:14px;background:var(--primary-soft);border-color:var(--primary-soft-2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <div>
           <b style="color:var(--primary-600)">🌐 Team Server Access Link: <code class="mono">${this.esc(shareUrl)}</code></b>
-          <div class="muted sm">Team members on your Wi-Fi/LAN can open this URL directly, or click "Configure Public Internet Link" to share across any city/network.</div>
+          <div class="muted sm">All team members share the same live leads &amp; updates automatically in real time.</div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-sm" onclick="UI.openShareCrmModal()">⚙️ Configure Public Internet Link / SMTP Email</button>
@@ -1514,7 +1551,6 @@ const UI = {
     `;
   },
 
-  /* ==================== DEDICATED INVITE & SHARE ACCESS MODAL (EMAIL + GMAIL + WHATSAPP + MAGIC AUTO-LOGIN LINK) ==================== */
   openInviteShareModal(empId) {
     const m = this.teamMembers.find(x => x.id === empId);
     if (!m) return;
@@ -1623,12 +1659,12 @@ const UI = {
 
           <div style="background:#f0fdf4;padding:12px;border-radius:10px;border:1px solid #bbf7d0;margin-bottom:14px">
             <b style="color:#15803d">2. Share Anywhere on the Internet (Different Cities / Remote Team):</b>
-            <p class="muted sm" style="margin:4px 0 8px">To get a free public ` + '`https://...`' + ` link from your PC, open a new terminal in VS Code and run: <code>npx localtunnel --port 4000</code> (or deploy to Render/Railway). Paste that public URL below so all Team Invite emails use it automatically:</p>
-            <input id="sh_public_url" value="${this.esc(savedPublicUrl)}" placeholder="e.g. https://novacrm-team.loca.lt (Leave blank to use LAN URL)" />
+            <p class="muted sm" style="margin:4px 0 8px">Paste your Render URL (e.g. <code>https://novacrm-saas.onrender.com</code>) below so all Team Invite emails use it automatically:</p>
+            <input id="sh_public_url" value="${this.esc(savedPublicUrl)}" placeholder="https://novacrm-saas.onrender.com" />
           </div>
 
           <div style="background:var(--panel-2);padding:12px;border-radius:10px;border:1px solid var(--border)">
-            <b>3. Optional: Direct Automated Gmail SMTP (Send Emails Without Opening Browser Tab):</b>
+            <b>3. Optional: Direct Automated Gmail SMTP:</b>
             <div class="form-grid" style="margin-top:8px">
               <label><span>Your Gmail Address</span><input id="sh_smtp_user" type="email" value="${this.esc(savedSmtpEmail)}" placeholder="yourcompany@gmail.com" /></label>
               <label><span>Gmail 16-Digit App Password</span><input id="sh_smtp_pass" type="password" placeholder="xxxx xxxx xxxx xxxx" /></label>
@@ -1706,7 +1742,6 @@ const UI = {
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="UI.openLeadDrawer('${l.id}')">
                   <div>
                     <b>${this.esc(l.company || l.name)}</b> <small class="muted">(${this.esc(l.phone || '—')})</small>
-                    ${l.talk_summary ? `<div class="muted sm">${this.esc(l.talk_summary)}</div>` : ''}
                   </div>
                   <span class="stage-badge ${this.getStageBadgeClass(l.stage, l.interest_level)}">${this.esc(l.stage)}</span>
                 </div>
@@ -1734,7 +1769,7 @@ const UI = {
             <h4 style="margin-bottom:8px">🏢 Previous Companies History (${(m.previous_companies || []).length})</h4>
             ${(m.previous_companies || []).map(p => `
               <div style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
-                <b>${this.esc(p.company)}</b> — ${this.esc(p.role)}
+                <b>${this.esc(p.company)}</b> —${this.esc(p.role)}
                 <div class="muted sm">Tenure: ${this.esc(p.duration)} • Last CTC: ${this.esc(p.ctc)}</div>
               </div>
             `).join('') || '<p class="muted sm">No previous companies listed. Click "Edit HRMS & Login" below to add past companies.</p>'}
@@ -1852,7 +1887,6 @@ const UI = {
     this.flashSaved(`✓ Team Member Saved`);
     await this.refreshWorkspace();
     await this.renderTeam();
-    // Automatically open the Email/WhatsApp Invite modal right after creating a team member!
     if (res.id) {
       this.openInviteShareModal(res.id);
     }
@@ -1902,7 +1936,7 @@ const UI = {
         <div class="card card-pad">
           <h3>🌐 CRM Sharing &amp; Team Invite Configuration</h3>
           <p class="muted sm" style="margin:6px 0 14px">Configure your LAN / Public Internet URL and Gmail SMTP so invited team members can log in from anywhere.</p>
-          <button class="btn btn-primary" onclick="UI.openShareCrmModal()">⚙️ Open Sharing &amp; Email Settings</button>
+          <button class="btn btn-primary" onclick="UI.openShareCrmModal()">🌐 Share CRM &amp; Invite Settings</button>
         </div>
       </div>
     `;
@@ -2010,7 +2044,6 @@ const UI = {
             </div>
           </div>
 
-          <!-- Multi-Sheet Selector Bar (Appears automatically when file has > 1 sheet!) -->
           <div id="sheetPickerBar" class="sheet-picker-bar hidden">
             <div>
               <b style="color:var(--primary-600)">📑 Multiple Sheets Detected in File!</b>
@@ -2068,7 +2101,6 @@ const UI = {
     return mapping;
   },
 
-  // Setup Workbook & Show Multi-Sheet Picker if > 1 Sheet Exists!
   setupWorkbookInWizard(workbook, sourceLabel) {
     this.currentWorkbook = workbook;
     const sheetNames = workbook.SheetNames || [];
@@ -2084,9 +2116,8 @@ const UI = {
       pickerBar.classList.remove('hidden');
       dropdown.innerHTML = `
         <option value="__ALL__">📚 Import All Sheets (${sheetNames.length} Sheets Combined)</option>
-        ${sheetNames.map((s, idx) => `<option value="${this.esc(s)}">📄 Sheet ${idx + 1}: ${this.esc(s)}</option>`).join('')}
+        ${sheetNames.map((s, idx) => `<option value="${this.esc(s)}">📄 Sheet ${idx + 1}:${this.esc(s)}</option>`).join('')}
       `;
-      // Default to first sheet so user can clearly inspect Sheet 1 or switch to "Import All Sheets"
       dropdown.value = sheetNames[0];
       this.onSelectWorkbookSheet(sheetNames[0]);
     } else {
@@ -2125,7 +2156,6 @@ const UI = {
         }
       });
 
-      // Iterate top-to-bottom so Row 1 is always first!
       for (let r = headerIdx + 1; r < matrix.length; r++) {
         const arr = matrix[r];
         if (!arr || arr.every(c => String(c).trim() === '')) continue;
@@ -2344,340 +2374,17 @@ const UI = {
 };
 
 window.addEventListener('DOMContentLoaded', () => UI.init());
-</script>
-</body>
-</html>
-<script>
+
 // ============================================================================
-// 🚀 NOVACRM: REAL BACKEND SYNC + 35-BATCH AUTO-SHIFT + UI CLEANUP
+// ⚡ REAL-TIME TEAM AUTO-SYNC ENGINE (POLLS EVERY 2 SECONDS & UPDATES UI)
 // ============================================================================
-(function() {
-  const BATCH_SIZE = 35;
-  let showCompletedBatches = false;
-  let lastSyncTime = 0;
-  let isSyncing = false;
-  let masterAllLeads = []; // Asli poori leads list (335+ leads)
-
-  // 1. UI CLEANUP: Top "Share CRM" ko Settings mein bhejna aur extra "Import" hatana
-  function cleanUpInterface() {
-    // Niche wala purana floating bar hatayein (agar kahin bacha ho)
-    const oldBar = document.getElementById('novaQueueSwitcherBar');
-    if (oldBar) oldBar.remove();
-
-    // Top Header se "Share CRM" button chhupayein aur Settings mein dikhayein
-    document.querySelectorAll('button, a').forEach(el => {
-      const txt = (el.innerText || '').trim();
-
-      // Top header ka Share CRM button hide karein
-      if (txt.includes('Share CRM') && !el.classList.contains('moved-to-settings')) {
-        const isTopBar = el.closest('header') || el.parentElement?.innerText.includes('New lead');
-        if (isTopBar) {
-          el.style.display = 'none';
-          window.__novaShareBtnAction = () => el.click();
-        }
-      }
-
-      // Dashboard ke "Leads Overview" ke andar wala extra "Import" button hamesha ke liye hatayein
-      if (txt.includes('Import') && el.parentElement && el.parentElement.innerText.includes('All Leads')) {
-        el.style.display = 'none';
-      }
-    });
-
-    // Agar user Settings page par hai, toh wahan "Share CRM" button dikhayein
-    const headings = Array.from(document.querySelectorAll('h1, h2, h3'));
-    const settingsHeading = headings.find(h => (h.innerText || '').trim() === 'Settings');
-    if (settingsHeading && settingsHeading.parentElement && !document.getElementById('settingsShareCrmBtn')) {
-      const shareBtn = document.createElement('button');
-      shareBtn.id = 'settingsShareCrmBtn';
-      shareBtn.className = 'moved-to-settings';
-      shareBtn.innerHTML = '🌐 Share CRM & Invite Links';
-      shareBtn.style.cssText = 'margin: 12px 0; background:#2563eb; color:#fff; border:none; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px;';
-      shareBtn.onclick = () => {
-        if (window.__novaShareBtnAction) window.__novaShareBtnAction();
-      };
-      settingsHeading.insertAdjacentElement('afterend', shareBtn);
-    }
-  }
-
-  // 2. Check karein ki kya ek lead par kaam ho chuka hai (Stage != 'New')
-  function isLeadCompleted(lead) {
-    if (!lead) return false;
-    const st = String(lead.stage || lead.status || 'New').trim().toLowerCase();
-    return st !== '' && st !== 'new' && st !== 'fresh' && st !== 'unassigned';
-  }
-
-  // 3. 35-35 Leads ke Batches banana (Jab poori 35 complete hon tabhi shift ho!)
-  function computeBatches(allLeadsList) {
-    if (!Array.isArray(allLeadsList)) return { activeList: [], completedList: [] };
-
-    const activeList = [];
-    const completedList = [];
-
-    for (let i = 0; i < allLeadsList.length; i += BATCH_SIZE) {
-      const batch = allLeadsList.slice(i, i + BATCH_SIZE);
-      // Jab tak is 35 ke batch mein 1 bhi lead 'New' hai, poora batch Active rahega!
-      // Jaise hi 35 ki 35 leads ka stage badal jayega, poora batch Completed mein jayega!
-      const isFullBatchDone = batch.length > 0 && batch.every(l => isLeadCompleted(l));
-
-      if (isFullBatchDone) {
-        completedList.push(...batch);
-      } else {
-        activeList.push(...batch);
-      }
-    }
-
-    return { activeList, completedList };
-  }
-
-  // 4. App ke andar Leads Array ko dhoondhna aur update karna
-  function getAppLeadsArray() {
-    if (typeof App !== 'undefined' && Array.isArray(App.leads)) return App.leads;
-    if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) return window.leads;
-    if (typeof state !== 'undefined' && Array.isArray(state.leads)) return state.leads;
-    return null;
-  }
-
-  function applyLeadsToAppUI(fullLeadsArray) {
-    masterAllLeads = fullLeadsArray;
-    const { activeList, completedList } = computeBatches(masterAllLeads);
-    const listToDisplay = showCompletedBatches ? completedList : activeList;
-
-    if (typeof App !== 'undefined' && Array.isArray(App.leads)) {
-      App.leads = listToDisplay;
-      if (typeof App.renderLeads === 'function') App.renderLeads();
-      else if (typeof App.render === 'function') App.render();
-    } else if (typeof window.leads !== 'undefined') {
-      window.leads = listToDisplay;
-      if (typeof renderLeads === 'function') renderLeads();
-      else if (typeof renderTable === 'function') renderTable();
-    }
-
-    updateBatchToggleButtons(activeList.length, completedList.length);
-  }
-
-  // 5. Upar Clean Button ("✅ Completed Batches" / "🔥 Active Queue") banana
-  function updateBatchToggleButtons(activeCount, completedCount) {
-    cleanUpInterface();
-
-    // Dashboard Leads Overview mein "All Leads" ke bagal mein button lagana
-    const allBtns = Array.from(document.querySelectorAll('button, a'));
-    const allLeadsBtn = allBtns.find(b => (b.innerText || '').includes('All Leads ('));
-    if (allLeadsBtn && allLeadsBtn.parentElement && !document.getElementById('dashBatchToggleBtn')) {
-      const btn = document.createElement('button');
-      btn.id = 'dashBatchToggleBtn';
-      btn.className = 'nova-batch-toggle-btn';
-      btn.style.cssText = 'margin-right:8px; padding:6px 14px; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px;';
-      btn.onclick = (e) => {
-        e.preventDefault();
-        showCompletedBatches = !showCompletedBatches;
-        applyLeadsToAppUI(masterAllLeads);
-      };
-      allLeadsBtn.parentElement.insertBefore(btn, allLeadsBtn);
-    }
-
-    // Leads Page par "Lost" tab ke bagal mein button lagana
-    const lostTab = allBtns.find(b => (b.innerText || '').trim() === 'Lost');
-    if (lostTab && lostTab.parentElement && !document.getElementById('leadsBatchToggleBtn')) {
-      const btn = document.createElement('button');
-      btn.id = 'leadsBatchToggleBtn';
-      btn.className = 'nova-batch-toggle-btn';
-      btn.style.cssText = 'margin-left:auto; padding:6px 14px; border-radius:8px; font-weight:600; cursor:pointer; font-size:13px;';
-      btn.onclick = (e) => {
-        e.preventDefault();
-        showCompletedBatches = !showCompletedBatches;
-        applyLeadsToAppUI(masterAllLeads);
-      };
-      lostTab.parentElement.appendChild(btn);
-    }
-
-    // Button ka text aur rang update karein
-    document.querySelectorAll('.nova-batch-toggle-btn').forEach(btn => {
-      if (showCompletedBatches) {
-        btn.innerHTML = `⬅️ Active Leads Queue (${activeCount})`;
-        btn.style.background = '#2563eb';
-        btn.style.color = '#ffffff';
-        btn.style.border = '1px solid #2563eb';
-      } else {
-        btn.innerHTML = `✅ Completed Batches (${completedCount})`;
-        btn.style.background = '#f8fafc';
-        btn.style.color = '#0f172a';
-        btn.style.border = '1px solid #cbd5e1';
-      }
-    });
-  }
-
-  // 6. REAL-TIME NETWORK INTERCEPTOR (Fetch API ko hook karna taaki har change team ko dikhe)
-  const originalFetch = window.fetch.bind(window);
-  window.fetch = async function(url, options = {}) {
-    const response = await originalFetch(url, options);
-
-    try {
-      const urlStr = String(url);
-      const method = (options.method || 'GET').toUpperCase();
-
-      // Agar app ne leads mein koi change (POST/PUT/PATCH/DELETE) kiya hai
-      if (urlStr.includes('/api/leads') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-        setTimeout(() => syncLocalStateToMasterServer(), 300);
-      }
-    } catch (e) {}
-
-    return response;
-  };
-
-  // Jab bhi user koi dropdown (Stage/Follow-up) ya Note badle, Master Server par sync karein
-  async function syncLocalStateToMasterServer() {
-    if (isSyncing) return;
-    const currentAppLeads = getAppLeadsArray();
-    if (!currentAppLeads) return;
-
-    // Agar hum Active mode mein hain, toh Completed batches ko wapas jod kar poori list banayein
-    const { activeList, completedList } = computeBatches(masterAllLeads);
-    let mergedList = currentAppLeads;
-
-    if (masterAllLeads.length > 0 && currentAppLeads.length < masterAllLeads.length) {
-      const updatedMap = new Map();
-      currentAppLeads.forEach(l => updatedMap.set(String(l.id || l.company + l.phone), l));
-      mergedList = masterAllLeads.map(orig => {
-        const key = String(orig.id || orig.company + orig.phone);
-        return updatedMap.has(key) ? updatedMap.get(key) : orig;
-      });
-    }
-
-    masterAllLeads = mergedList;
-
-    try {
-      const res = await originalFetch('/api/master-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'replace_all', leads: masterAllLeads })
-      });
-      const data = await res.json();
-      if (data.updated_at) lastSyncTime = data.updated_at;
-      applyLeadsToAppUI(masterAllLeads);
-    } catch (e) {}
-  }
-
-  // Har 3 second mein check karein ki kisi Team Member ne koi change kiya kya
-  async function pollMasterServerForTeamChanges(isInitial = false) {
-    // Agar user kisi input box mein type kar raha hai toh disturb na karein
-    if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
-      if (!isInitial) return;
-    }
-
-    try {
-      const res = await originalFetch('/api/master-sync');
-      if (!res.ok) return;
-      const data = await res.json();
-
-      if (data.leads && Array.isArray(data.leads) && data.leads.length > 0) {
-        if (data.updated_at > lastSyncTime || isInitial) {
-          isSyncing = true;
-          lastSyncTime = data.updated_at;
-          applyLeadsToAppUI(data.leads);
-          setTimeout(() => { isSyncing = false; }, 300);
-        }
-      } else if (isInitial) {
-        // Pehli baar agar server par master file khali hai, toh current leads upload kar dein
-        const current = getAppLeadsArray();
-        if (current && current.length > 0) {
-          masterAllLeads = [...current];
-          syncLocalStateToMasterServer();
-        }
-      }
-    } catch (e) {}
-  }
-
-  document.addEventListener('change', (e) => {
-    if (['SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
-      setTimeout(syncLocalStateToMasterServer, 400);
-    }
-  });
-
-  window.addEventListener('DOMContentLoaded', () => {
-    cleanUpInterface();
-    setTimeout(() => {
-      cleanUpInterface();
-      pollMasterServerForTeamChanges(true);
-    }, 1000);
-  });
-
-  setInterval(() => {
-    cleanUpInterface();
-    pollMasterServerForTeamChanges(false);
-  }, 3000);
-})();
-</script>
-<script>
-// ==========================================
-// ⚡ LIVE TEAM AUTO-SYNC (2 SECONDS INTERVAL)
-// ==========================================
-(function() {
-  let lastSyncTimestamp = 0;
-  let isLocalEditing = false;
-
-  // यूजर जब टाइप कर रहा हो तो डिस्टर्ब न करें
-  document.addEventListener('focusin', (e) => {
-    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) isLocalEditing = true;
-  });
-  document.addEventListener('focusout', () => {
-    setTimeout(() => { isLocalEditing = false; }, 1000);
-  });
-
-  // हर 2 सेकंड में सर्वर से नया डेटा लाएं
-  setInterval(async () => {
-    if (isLocalEditing) return;
-    try {
-      const res = await fetch('/api/team-sync-master');
-      if (!res.ok) return;
-      const data = await res.json();
-
-      if (data.updatedAt && data.updatedAt > lastSyncTimestamp) {
-        lastSyncTimestamp = data.updatedAt;
-        
-        // ऐप की लीड्स लिस्ट को अपडेट करें
-        if (typeof App !== 'undefined' && Array.isArray(App.leads)) {
-          if (JSON.stringify(App.leads) !== JSON.stringify(data.leads)) {
-            App.leads = data.leads;
-            if (typeof App.renderLeads === 'function') App.renderLeads();
-            else if (typeof App.render === 'function') App.render();
-          }
-        } else if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) {
-          if (JSON.stringify(window.leads) !== JSON.stringify(data.leads)) {
-            window.leads = data.leads;
-            if (typeof renderLeads === 'function') renderLeads();
-          }
-        }
-      }
-    } catch (e) {}
-  }, 2000);
-
-  // जब भी कोई बदलाव हो, तुरंत सर्वर को भेजें
-  document.addEventListener('change', async () => {
-    setTimeout(async () => {
-      let currentLeads = [];
-      if (typeof App !== 'undefined' && Array.isArray(App.leads)) currentLeads = App.leads;
-      else if (typeof window.leads !== 'undefined' && Array.isArray(window.leads)) currentLeads = window.leads;
-
-      if (currentLeads.length > 0) {
-        try {
-          const res = await fetch('/api/team-sync-master', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ leads: currentLeads })
-          });
-          const data = await res.json();
-          if (data.updatedAt) lastSyncTimestamp = data.updatedAt;
-        } catch (e) {}
-      }
-    }, 400);
-  });
-})();
-</script>
-<script>
-// === REAL-TIME SUPABASE VERSION WATCHER (AUTO-REFRESHES TEAM SCREENS) ===
 (function() {
   let knownVersion = 0;
   let isUserTyping = false;
+
+  window.__updateKnownDbVersion = function(v) {
+    if (v && Number(v) > knownVersion) knownVersion = Number(v);
+  };
 
   document.addEventListener('focusin', (e) => {
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) isUserTyping = true;
@@ -2688,25 +2395,33 @@ window.addEventListener('DOMContentLoaded', () => UI.init());
 
   setInterval(async () => {
     if (isUserTyping) return;
-    if (document.querySelector('.modal.active, .modal.open')) return;
+    if (!API || !API.token) return;
+    if (document.querySelector('.modal-root.open')) return;
 
     try {
-      const res = await fetch('/api/live-version');
+      const res = await fetch('/api/live-version?t=' + Date.now(), { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
+      const serverVer = Number(data.version || 0);
 
-      if (data.version && knownVersion !== 0 && data.version > knownVersion) {
-        knownVersion = data.version;
-        // Team member made a change! Reload data silently:
-        if (typeof App !== 'undefined') {
-          if (typeof App.loadLeads === 'function') App.loadLeads();
-          if (typeof App.loadDashboard === 'function') App.loadDashboard();
-          else if (typeof App.init === 'function') App.init();
-        }
-      } else if (data.version && knownVersion === 0) {
-        knownVersion = data.version;
+      if (serverVer && knownVersion !== 0 && serverVer !== knownVersion) {
+        knownVersion = serverVer;
+        UI.flashSaved('🔄 Synced Team Update');
+        await UI.refreshWorkspace();
+        if (document.querySelector('.drawer-root.open')) return;
+        if (UI.route === 'dashboard') UI.renderDashboard();
+        else if (UI.route === 'leads') UI.renderLeads();
+        else if (UI.route === 'pipeline') UI.renderPipeline();
+        else if (UI.route === 'calendar') UI.renderCalendar();
+        else if (UI.route === 'team') UI.renderTeam();
+        else if (UI.route === 'reports') UI.renderReports();
+        else if (UI.route === 'messages') UI.renderMessages();
+      } else if (serverVer && knownVersion === 0) {
+        knownVersion = serverVer;
       }
     } catch (e) {}
-  }, 2500);
+  }, 2000);
 })();
 </script>
+</body>
+</html>

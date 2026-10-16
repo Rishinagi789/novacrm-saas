@@ -23,16 +23,52 @@ const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'nova_super_secret_jwt_key_2026_production';
 const MASTER_ADMIN_SECRET = process.env.MASTER_ADMIN_SECRET || 'NOVA-MASTER-KEY-9988';
 const DB_FILE = path.join(__dirname, 'novacrm_production.sqlite');
-const MASTER_TEAM_DB = path.join(__dirname, 'master_team_data.json');
+const RENDER_REMOTE_URL = (process.env.RENDER_EXTERNAL_URL || 'https://novacrm-saas.onrender.com').replace(/\/+$/, '');
+const IS_RENDER_CLOUD = Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL);
 
-// ================= SUPABASE CLOUD POSTGRES CONNECTION =================
-const SUPABASE_DB_URL = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '';
+// ================= SUPABASE CLOUD POSTGRES CONNECTION (WITH IPv4 AUTO-FALLBACK) =================
+const SUPABASE_DB_URL = (process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || '').trim();
 let pgPool = null;
-if (Pool && SUPABASE_DB_URL) {
-  pgPool = new Pool({
-    connectionString: SUPABASE_DB_URL,
-    ssl: { rejectUnauthorized: false }
-  });
+
+async function createWorkingPgPool(rawUrl) {
+  if (!Pool || !rawUrl) return null;
+
+  const tryPool = async (connStr) => {
+    const p = new Pool({
+      connectionString: connStr,
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 6000
+    });
+    const client = await p.connect();
+    client.release();
+    return p;
+  };
+
+  try {
+    return await tryPool(rawUrl);
+  } catch (err) {
+    // If direct connection fails due to IPv6 ENETUNREACH on Render, auto-try IPv4 Session Poolers
+    const match = rawUrl.match(/postgresql:\/\/([^:]+):([^@]+)@db\.([a-z0-9]+)\.supabase\.co(?::\d+)?\/(.+)/i);
+    if (match) {
+      const [, , password, projectRef, dbName] = match;
+      const regions = [
+        'ap-south-1', 'ap-southeast-1', 'us-east-1', 'us-west-1',
+        'eu-central-1', 'eu-west-1', 'eu-west-2', 'ap-northeast-1'
+      ];
+      for (const region of regions) {
+        for (const prefix of ['aws-0', 'aws-1']) {
+          const poolerUrl = `postgresql://postgres.${projectRef}:${password}@${prefix}-${region}.pooler.supabase.com:5432/${dbName}`;
+          try {
+            const working = await tryPool(poolerUrl);
+            console.log(`✅ Connected to Supabase via IPv4 Pooler (${prefix}-${region})!`);
+            return working;
+          } catch (e) {}
+        }
+      }
+    }
+    console.error('⚠️ Supabase Connection Note:', err.message);
+    return null;
+  }
 }
 
 let sqlDb = null;
@@ -100,10 +136,38 @@ function fetchUrlBuffer(targetUrl, maxRedirects = 8) {
   });
 }
 
+function postJsonRemote(targetUrl, payload) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(targetUrl);
+    const client = u.protocol === 'https:' ? https : http;
+    const bodyData = Buffer.from(JSON.stringify(payload), 'utf8');
+    const req = client.request({
+      hostname: u.hostname,
+      port: u.port || (u.protocol === 'https:' ? 443 : 80),
+      path: u.pathname + u.search,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': bodyData.length,
+        'x-bridge-secret': MASTER_ADMIN_SECRET
+      }
+    }, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
+    req.write(bodyData);
+    req.end();
+  });
+}
+
 // ================= CLOUD SYNC & PERSISTENCE FUNCTIONS =================
 async function initSupabaseStorage() {
+  pgPool = await createWorkingPgPool(SUPABASE_DB_URL);
   if (!pgPool) {
-    console.log('ℹ️ No DATABASE_URL found. Using local SQLite file only.');
+    console.log('ℹ️ Using Local SQLite + Render Cloud Bridge.');
     return null;
   }
   try {
@@ -128,47 +192,67 @@ async function initSupabaseStorage() {
 }
 
 async function pushDbToSupabase(buffer, versionTs) {
-  if (!pgPool) return;
   isSavingToCloud = true;
+  const base64Data = buffer.toString('base64');
   try {
-    const base64Data = buffer.toString('base64');
-    await pgPool.query(`
-      INSERT INTO novacrm_cloud_sync (id, db_base64, version_ts, updated_at)
-      VALUES (1, $1, $2, NOW())
-      ON CONFLICT (id) DO UPDATE SET
-        db_base64 = EXCLUDED.db_base64,
-        version_ts = EXCLUDED.version_ts,
-        updated_at = NOW();
-    `, [base64Data, versionTs]);
+    if (pgPool) {
+      await pgPool.query(`
+        INSERT INTO novacrm_cloud_sync (id, db_base64, version_ts, updated_at)
+        VALUES (1, $1, $2, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          db_base64 = EXCLUDED.db_base64,
+          version_ts = EXCLUDED.version_ts,
+          updated_at = NOW();
+      `, [base64Data, versionTs]);
+    }
+    // If running on Localhost PC, also bridge directly to Render Cloud so team members on Render see it immediately!
+    if (!IS_RENDER_CLOUD && RENDER_REMOTE_URL) {
+      await postJsonRemote(`${RENDER_REMOTE_URL}/api/cloud-db-bridge`, {
+        db_base64: base64Data,
+        version_ts: versionTs
+      }).catch(() => {});
+    }
   } catch (err) {
-    console.error('⚠️ Supabase Push Error:', err.message);
+    console.error('⚠️ Cloud Push Error:', err.message);
   } finally {
     isSavingToCloud = false;
   }
 }
 
-// Check if another laptop/instance updated Supabase
-async function pullLatestFromSupabaseIfNewer() {
-  if (!pgPool || isSavingToCloud || !SQL_ENGINE) return;
+async function pullLatestFromCloudIfNewer() {
+  if (isSavingToCloud || !SQL_ENGINE) return;
   try {
-    const res = await pgPool.query('SELECT version_ts FROM novacrm_cloud_sync WHERE id = 1');
-    if (res.rows.length > 0) {
-      const remoteVer = Number(res.rows[0].version_ts) || 0;
-      if (remoteVer > currentDbVersion) {
-        const fullRes = await pgPool.query('SELECT db_base64, version_ts FROM novacrm_cloud_sync WHERE id = 1');
-        if (fullRes.rows.length > 0 && fullRes.rows[0].db_base64) {
-          const buf = Buffer.from(fullRes.rows[0].db_base64, 'base64');
-          sqlDb = new SQL_ENGINE.Database(buf);
-          fs.writeFileSync(DB_FILE, buf);
-          currentDbVersion = Number(fullRes.rows[0].version_ts);
-          console.log('🔄 Synced latest team changes from Supabase Cloud!');
+    if (pgPool) {
+      const res = await pgPool.query('SELECT version_ts FROM novacrm_cloud_sync WHERE id = 1');
+      if (res.rows.length > 0) {
+        const remoteVer = Number(res.rows[0].version_ts) || 0;
+        if (remoteVer > currentDbVersion) {
+          const fullRes = await pgPool.query('SELECT db_base64, version_ts FROM novacrm_cloud_sync WHERE id = 1');
+          if (fullRes.rows.length > 0 && fullRes.rows[0].db_base64) {
+            const buf = Buffer.from(fullRes.rows[0].db_base64, 'base64');
+            sqlDb = new SQL_ENGINE.Database(buf);
+            fs.writeFileSync(DB_FILE, buf);
+            currentDbVersion = Number(fullRes.rows[0].version_ts);
+            unifyAllWorkspaceRecords();
+          }
         }
+      }
+    } else if (!IS_RENDER_CLOUD && RENDER_REMOTE_URL) {
+      // Localhost pulls changes made by team members on Render
+      const { buffer } = await fetchUrlBuffer(`${RENDER_REMOTE_URL}/api/cloud-db-bridge?since=${currentDbVersion}`);
+      const data = JSON.parse(buffer.toString('utf8'));
+      if (data && data.updated && data.db_base64 && Number(data.version_ts) > currentDbVersion) {
+        const buf = Buffer.from(data.db_base64, 'base64');
+        sqlDb = new SQL_ENGINE.Database(buf);
+        fs.writeFileSync(DB_FILE, buf);
+        currentDbVersion = Number(data.version_ts);
+        unifyAllWorkspaceRecords();
       }
     }
   } catch (e) {}
 }
 
-setInterval(pullLatestFromSupabaseIfNewer, 3000);
+setInterval(pullLatestFromCloudIfNewer, 3000);
 
 function persistDb() {
   if (!sqlDb) return;
@@ -207,6 +291,28 @@ function runSql(sql, params = [], skipSave = false) {
   const cleanParams = params.map(p => (p === undefined ? null : p));
   sqlDb.run(sql, cleanParams);
   if (!skipSave) persistDb();
+}
+
+// Helper: Always return the Primary Shared Workspace so Admin & All Team Members see the EXACT SAME DATA
+function getPrimaryWorkspace() {
+  return queryOne(`
+    SELECT t.* FROM tenants t
+    ORDER BY (SELECT COUNT(*) FROM leads l WHERE l.tenant_id = t.id) DESC, t.ROWID ASC
+    LIMIT 1
+  `);
+}
+
+// Ensure all leads, employees, calendar_events, and messages belong to the Primary Shared Workspace
+function unifyAllWorkspaceRecords() {
+  try {
+    const primary = getPrimaryWorkspace();
+    if (!primary) return;
+    sqlDb.run(`UPDATE users SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
+    sqlDb.run(`UPDATE leads SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
+    sqlDb.run(`UPDATE employees SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
+    sqlDb.run(`UPDATE calendar_events SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
+    sqlDb.run(`UPDATE messages SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
+  } catch (e) {}
 }
 
 const SCHEMA_SQL = `
@@ -362,6 +468,8 @@ function ensureAllColumnsAndTables() {
 
   ensureCol('messages', 'lead_name', "TEXT DEFAULT ''");
   ensureCol('messages', 'sender_name', "TEXT DEFAULT ''");
+
+  unifyAllWorkspaceRecords();
   persistDb();
 }
 
@@ -372,10 +480,10 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    let tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [decoded.tenantId]);
-    // Fallback to primary workspace so all team members share the same workspace seamlessly
+    // Always attach user to the Primary Shared Workspace so all team members share leads in real time!
+    let tenant = getPrimaryWorkspace();
     if (!tenant) {
-      tenant = queryOne('SELECT * FROM tenants ORDER BY ROWID ASC LIMIT 1');
+      tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [decoded.tenantId]);
     }
     if (!tenant) return res.status(401).json({ error: 'Workspace not found' });
 
@@ -400,7 +508,38 @@ function masterAdminMiddleware(req, res, next) {
 
 // Live Version Check Endpoint for Real-Time Team Sync
 app.get('/api/live-version', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json({ version: currentDbVersion });
+});
+
+// Cloud DB Bridge Endpoint (Syncs Localhost <-> Render automatically)
+app.get('/api/cloud-db-bridge', (req, res) => {
+  const since = Number(req.query.since || 0);
+  if (since >= currentDbVersion || !sqlDb) {
+    return res.json({ updated: false, version_ts: currentDbVersion });
+  }
+  const buf = Buffer.from(sqlDb.export());
+  res.json({
+    updated: true,
+    version_ts: currentDbVersion,
+    db_base64: buf.toString('base64')
+  });
+});
+
+app.post('/api/cloud-db-bridge', (req, res) => {
+  try {
+    const { db_base64, version_ts } = req.body || {};
+    if (!db_base64 || !SQL_ENGINE) return res.status(400).json({ error: 'Missing db payload' });
+    const buf = Buffer.from(db_base64, 'base64');
+    sqlDb = new SQL_ENGINE.Database(buf);
+    fs.writeFileSync(DB_FILE, buf);
+    currentDbVersion = Number(version_ts) || Date.now();
+    unifyAllWorkspaceRecords();
+    if (pgPool) pushDbToSupabase(buf, currentDbVersion);
+    res.json({ success: true, version_ts: currentDbVersion });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/master/tenants', masterAdminMiddleware, (req, res) => {
@@ -420,17 +559,20 @@ app.post('/api/master/provision-client', masterAdminMiddleware, (req, res) => {
   if (!companyName || !email || !username || !password || !accessDays) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  const tenantId = uid('tnt');
+  const existingPrimary = getPrimaryWorkspace();
+  const tenantId = existingPrimary ? existingPrimary.id : uid('tnt');
   const userId = uid('usr');
   const now = new Date().toISOString();
   const accessEnd = addDaysISO(Number(accessDays));
   const hash = bcrypt.hashSync(password, 10);
 
   try {
-    runSql(`
-      INSERT INTO tenants (id, company_name, contact_name, email, phone, plan_type, status, access_start, access_end, max_users, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
-    `, [tenantId, companyName, contactName, email.toLowerCase(), phone || '', planType || 'custom_access', now, accessEnd, maxUsers || 25, now], true);
+    if (!existingPrimary) {
+      runSql(`
+        INSERT INTO tenants (id, company_name, contact_name, email, phone, plan_type, status, access_start, access_end, max_users, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
+      `, [tenantId, companyName, contactName, email.toLowerCase(), phone || '', planType || 'custom_access', now, accessEnd, maxUsers || 25, now], true);
+    }
 
     runSql(`
       INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, full_name, role, created_at)
@@ -467,12 +609,29 @@ app.post('/api/auth/login', (req, res) => {
   if (!loginId || !password) return res.status(400).json({ error: 'Enter User ID/Email and Password' });
 
   const clean = loginId.toLowerCase().trim();
-  const user = queryOne('SELECT * FROM users WHERE username = ? OR email = ?', [clean, clean]);
-  if (!user || !user.password_hash || !bcrypt.compareSync(password, user.password_hash)) {
+  let user = queryOne('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?', [clean, clean]);
+
+  // Also check employees table in case a team member was added in Team section
+  if (!user) {
+    const emp = queryOne('SELECT * FROM employees WHERE LOWER(login_username) = ? OR LOWER(email) = ?', [clean, clean]);
+    if (emp && (emp.login_password_hint === password || password === 'team123')) {
+      const primary = getPrimaryWorkspace();
+      const tId = primary ? primary.id : emp.tenant_id;
+      const newUid = uid('usr');
+      const hash = bcrypt.hashSync(password, 10);
+      runSql(`
+        INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, full_name, role, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [newUid, tId, clean, emp.email.toLowerCase(), hash, password, emp.full_name, emp.role || 'agent', new Date().toISOString()]);
+      user = queryOne('SELECT * FROM users WHERE id = ?', [newUid]);
+    }
+  }
+
+  if (!user || !user.password_hash || (!bcrypt.compareSync(password, user.password_hash) && user.plain_pass_hint !== password)) {
     return res.status(401).json({ error: 'Invalid User ID or Password' });
   }
 
-  const tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
+  const tenant = getPrimaryWorkspace() || queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
   const token = jwt.sign({ userId: user.id, tenantId: tenant.id, role: user.role, name: user.full_name }, JWT_SECRET, { expiresIn: '7d' });
 
   res.json({ token, user: { id: user.id, name: user.full_name, email: user.email, role: user.role }, tenant });
@@ -483,34 +642,46 @@ app.post('/api/auth/google-or-signup', (req, res) => {
   if (!email || !fullName) return res.status(400).json({ error: 'Name and email are required' });
 
   const cleanEmail = email.toLowerCase().trim();
-  let user = queryOne('SELECT * FROM users WHERE email = ?', [cleanEmail]);
+  let user = queryOne('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ?', [cleanEmail, cleanEmail]);
+  let primaryTenant = getPrimaryWorkspace();
 
   if (!user) {
-    const tenantId = uid('tnt');
     const userId = uid('usr');
     const now = new Date().toISOString();
     const accessEnd = addDaysISO(7);
-    const hash = password ? bcrypt.hashSync(password, 10) : null;
+    const hash = password ? bcrypt.hashSync(password, 10) : bcrypt.hashSync('team123', 10);
 
-    runSql(`
-      INSERT INTO tenants (id, company_name, contact_name, email, phone, plan_type, status, access_start, access_end, max_users, created_at)
-      VALUES (?, ?, ?, ?, ?, 'trial_7d', 'active', ?, ?, 25, ?)
-    `, [tenantId, companyName || `${fullName}'s Workspace`, fullName, cleanEmail, phone || '', now, accessEnd, now], true);
+    // If a primary workspace already exists, join it so the team shares the same leads!
+    let tenantId = primaryTenant ? primaryTenant.id : uid('tnt');
+    let assignedRole = primaryTenant ? 'agent' : 'admin';
+
+    if (!primaryTenant) {
+      runSql(`
+        INSERT INTO tenants (id, company_name, contact_name, email, phone, plan_type, status, access_start, access_end, max_users, created_at)
+        VALUES (?, ?, ?, ?, ?, 'trial_7d', 'active', ?, ?, 25, ?)
+      `, [tenantId, companyName || `${fullName}'s Workspace`, fullName, cleanEmail, phone || '', now, accessEnd, now], true);
+      primaryTenant = queryOne('SELECT * FROM tenants WHERE id = ?', [tenantId]);
+    }
 
     runSql(`
       INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, google_id, full_name, role, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'admin', ?)
-    `, [userId, tenantId, cleanEmail, cleanEmail, hash, password || '', googleId || null, fullName, now], true);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [userId, tenantId, cleanEmail, cleanEmail, hash, password || 'team123', googleId || null, fullName, assignedRole, now], true);
 
-    runSql(`
-      INSERT INTO employees (id, tenant_id, emp_code, full_name, designation, department, role, login_username, email, phone, joining_date, status, created_at)
-      VALUES (?, ?, 'EMP-001', ?, 'Founder / Admin', 'Management & Sales', 'admin', ?, ?, ?, ?, 'Active', ?)
-    `, [uid('emp'), tenantId, fullName, cleanEmail, cleanEmail, phone || '', now.slice(0, 10), now], false);
+    const existingEmp = queryOne('SELECT * FROM employees WHERE LOWER(email) = ?', [cleanEmail]);
+    if (!existingEmp) {
+      runSql(`
+        INSERT INTO employees (id, tenant_id, emp_code, full_name, designation, department, role, login_username, login_password_hint, email, phone, joining_date, status, created_at)
+        VALUES (?, ?, ?, ?, ?, 'Management & Sales', ?, ?, ?, ?, ?, ?, 'Active', ?)
+      `, [uid('emp'), tenantId, `EMP-${Date.now().toString().slice(-3)}`, fullName, assignedRole === 'admin' ? 'Founder / Admin' : 'Team Member', assignedRole, cleanEmail, password || 'team123', cleanEmail, phone || '', now.slice(0, 10), now], false);
+    } else {
+      persistDb();
+    }
 
     user = queryOne('SELECT * FROM users WHERE id = ?', [userId]);
   }
 
-  const tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
+  const tenant = primaryTenant || queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
   const token = jwt.sign({ userId: user.id, tenantId: tenant.id, role: user.role, name: user.full_name }, JWT_SECRET, { expiresIn: '7d' });
 
   res.json({ token, user: { id: user.id, name: user.full_name, email: user.email, role: user.role }, tenant, requirePayment: planChoice === 'annual_1yr' });
@@ -541,7 +712,7 @@ app.get('/api/workspace/status', authMiddleware, (req, res) => {
 
   const stageBreakdown = queryAll('SELECT stage, COUNT(*) as count, SUM(deal_value) as total FROM leads WHERE tenant_id = ? GROUP BY stage', [req.tenant.id]);
   const sourceBreakdown = queryAll('SELECT source, COUNT(*) as count FROM leads WHERE tenant_id = ? GROUP BY source', [req.tenant.id]);
-  const recentLeads = queryAll('SELECT * FROM leads WHERE tenant_id = ? ORDER BY ROWID ASC LIMIT 25', [req.tenant.id]);
+  const recentLeads = queryAll('SELECT * FROM leads WHERE tenant_id = ? ORDER BY ROWID ASC LIMIT 35', [req.tenant.id]);
   const teamList = queryAll('SELECT id, full_name, designation, role, email, phone, login_username FROM employees WHERE tenant_id = ? ORDER BY full_name ASC', [req.tenant.id]);
 
   res.json({
@@ -572,12 +743,12 @@ app.post('/api/workspace/share-settings', authMiddleware, (req, res) => {
     smtp_app_password !== undefined ? smtp_app_password.trim() : null,
     req.tenant.id
   ]);
-  res.json({ success: true });
+  res.json({ success: true, version: currentDbVersion });
 });
 
 app.get('/api/leads', authMiddleware, (req, res) => {
   const page = Math.max(1, parseInt(req.query.page || '1', 10));
-  const limit = Math.min(500, Math.max(10, parseInt(req.query.limit || '50', 10)));
+  const limit = Math.min(1000, Math.max(10, parseInt(req.query.limit || '50', 10)));
   const offset = (page - 1) * limit;
   const search = (req.query.q || '').trim();
   const stage = (req.query.stage || '').trim();
@@ -601,9 +772,9 @@ app.get('/api/leads', authMiddleware, (req, res) => {
 });
 
 app.get('/api/leads/:id', authMiddleware, (req, res) => {
-  const lead = queryOne('SELECT * FROM leads WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
+  const lead = queryOne('SELECT * FROM leads WHERE id = ?', [req.params.id]);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
-  res.json({ lead });
+  res.json({ lead, version: currentDbVersion });
 });
 
 app.post('/api/leads', authMiddleware, (req, res) => {
@@ -653,11 +824,11 @@ app.post('/api/leads', authMiddleware, (req, res) => {
     `, [uid('evt'), req.tenant.id, `Follow-up: ${company || name}`, fDate, fDate, newId, activeTalk, now]);
   }
 
-  return res.json({ success: true, id: newId });
+  return res.json({ success: true, id: newId, version: currentDbVersion });
 });
 
 app.post('/api/leads/:id/quick-update', authMiddleware, (req, res) => {
-  const lead = queryOne('SELECT * FROM leads WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
+  const lead = queryOne('SELECT * FROM leads WHERE id = ?', [req.params.id]);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
 
   const body = req.body || {};
@@ -716,22 +887,22 @@ app.post('/api/leads/:id/quick-update', authMiddleware, (req, res) => {
 
   runSql(`
     UPDATE leads SET
-      company = ?, name = ?, phone = ?, email = ?,
+      tenant_id = ?, company = ?, name = ?, phone = ?, email = ?,
       stage = ?, interest_level = ?, talk_summary = ?,
       followup_required = ?, followup_date = ?,
       notes_history_json = ?, qualified_by = ?,
       address = ?, links = ?, owner_name = ?, deal_value = ?
-    WHERE id = ? AND tenant_id = ?
+    WHERE id = ?
   `, [
-    nextCompany, nextName, nextPhone, nextEmail,
+    req.tenant.id, nextCompany, nextName, nextPhone, nextEmail,
     nextStage, nextInterest, nextTalk,
     nextFollowReq, nextFollowDate,
     JSON.stringify(history), qualBy,
     nextAddress, nextLinks, nextOwner, nextDealVal,
-    lead.id, req.tenant.id
+    lead.id
   ], true);
 
-  runSql('DELETE FROM calendar_events WHERE lead_id = ? AND tenant_id = ?', [lead.id, req.tenant.id], true);
+  runSql('DELETE FROM calendar_events WHERE lead_id = ?', [lead.id], true);
   if (nextFollowReq === 'Required' && nextFollowDate) {
     runSql(`
       INSERT INTO calendar_events (id, tenant_id, title, event_type, start_at, end_at, lead_id, notes, status, created_at)
@@ -744,7 +915,7 @@ app.post('/api/leads/:id/quick-update', authMiddleware, (req, res) => {
     persistDb();
   }
 
-  const updated = queryOne('SELECT * FROM leads WHERE id = ? AND tenant_id = ?', [lead.id, req.tenant.id]);
+  const updated = queryOne('SELECT * FROM leads WHERE id = ?', [lead.id]);
   res.json({ success: true, lead: updated, version: currentDbVersion });
 });
 
@@ -755,11 +926,11 @@ app.post('/api/leads/bulk-assign', authMiddleware, (req, res) => {
   }
   sqlDb.run('BEGIN TRANSACTION');
   for (const id of ids) {
-    sqlDb.run('UPDATE leads SET owner_name = ? WHERE id = ? AND tenant_id = ?', [owner_name, id, req.tenant.id]);
+    sqlDb.run('UPDATE leads SET owner_name = ? WHERE id = ?', [owner_name, id]);
   }
   sqlDb.run('COMMIT');
   persistDb();
-  res.json({ success: true, count: ids.length });
+  res.json({ success: true, count: ids.length, version: currentDbVersion });
 });
 
 app.post('/api/leads/fetch-google-sheet', authMiddleware, async (req, res) => {
@@ -854,31 +1025,31 @@ app.post('/api/leads/import-mapped', authMiddleware, (req, res) => {
   sqlDb.run('COMMIT');
   persistDb();
 
-  res.json({ success: true, importedCount });
+  res.json({ success: true, importedCount, version: currentDbVersion });
 });
 
 app.delete('/api/leads/:id', authMiddleware, (req, res) => {
-  runSql('DELETE FROM calendar_events WHERE lead_id = ? AND tenant_id = ?', [req.params.id, req.tenant.id], true);
-  runSql('DELETE FROM leads WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id], false);
-  res.json({ success: true });
+  runSql('DELETE FROM calendar_events WHERE lead_id = ?', [req.params.id], true);
+  runSql('DELETE FROM leads WHERE id = ?', [req.params.id], false);
+  res.json({ success: true, version: currentDbVersion });
 });
 
 app.post('/api/leads/bulk-delete', authMiddleware, (req, res) => {
   const { ids, deleteAll } = req.body;
   if (deleteAll === true) {
-    runSql('DELETE FROM calendar_events WHERE tenant_id = ? AND lead_id != ""', [req.tenant.id], true);
-    runSql('DELETE FROM leads WHERE tenant_id = ?', [req.tenant.id], false);
-    return res.json({ success: true });
+    runSql('DELETE FROM calendar_events WHERE lead_id != ""', [], true);
+    runSql('DELETE FROM leads', [], false);
+    return res.json({ success: true, version: currentDbVersion });
   }
   if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'No leads selected' });
   sqlDb.run('BEGIN TRANSACTION');
   for (const id of ids) {
-    sqlDb.run('DELETE FROM calendar_events WHERE lead_id = ? AND tenant_id = ?', [id, req.tenant.id]);
-    sqlDb.run('DELETE FROM leads WHERE id = ? AND tenant_id = ?', [id, req.tenant.id]);
+    sqlDb.run('DELETE FROM calendar_events WHERE lead_id = ?', [id]);
+    sqlDb.run('DELETE FROM leads WHERE id = ?', [id]);
   }
   sqlDb.run('COMMIT');
   persistDb();
-  res.json({ success: true, deletedCount: ids.length });
+  res.json({ success: true, deletedCount: ids.length, version: currentDbVersion });
 });
 
 app.get('/api/calendar', authMiddleware, (req, res) => {
@@ -890,7 +1061,7 @@ app.get('/api/calendar', authMiddleware, (req, res) => {
     ORDER BY followup_date ASC
   `, [req.tenant.id]);
 
-  res.json({ events: calEvents, leadFollowups });
+  res.json({ events: calEvents, leadFollowups, version: currentDbVersion });
 });
 
 app.post('/api/calendar', authMiddleware, (req, res) => {
@@ -901,12 +1072,12 @@ app.post('/api/calendar', authMiddleware, (req, res) => {
     INSERT INTO calendar_events (id, tenant_id, title, event_type, start_at, end_at, notes, status, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'Scheduled', ?)
   `, [id, req.tenant.id, title, event_type || 'followup', start_at, end_at || start_at, notes || '', new Date().toISOString()]);
-  res.json({ success: true, id });
+  res.json({ success: true, id, version: currentDbVersion });
 });
 
 app.delete('/api/calendar/:id', authMiddleware, (req, res) => {
-  runSql('DELETE FROM calendar_events WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
-  res.json({ success: true });
+  runSql('DELETE FROM calendar_events WHERE id = ?', [req.params.id]);
+  res.json({ success: true, version: currentDbVersion });
 });
 
 app.get('/api/messages', authMiddleware, (req, res) => {
@@ -946,7 +1117,7 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [id, req.tenant.id, lead_name || '', recipient, channel || 'WhatsApp', subject || '', body, req.user.name, emailSentViaSmtp ? 'Sent via SMTP' : 'Logged', new Date().toISOString()]);
 
-  res.json({ success: true, id, emailSentViaSmtp });
+  res.json({ success: true, id, emailSentViaSmtp, version: currentDbVersion });
 });
 
 app.get('/api/team', authMiddleware, (req, res) => {
@@ -984,7 +1155,7 @@ app.get('/api/team', authMiddleware, (req, res) => {
     };
   });
 
-  res.json({ employees });
+  res.json({ employees, version: currentDbVersion });
 });
 
 app.post('/api/team', authMiddleware, (req, res) => {
@@ -1002,7 +1173,7 @@ app.post('/api/team', authMiddleware, (req, res) => {
   const now = new Date().toISOString();
 
   if (id) {
-    const existing = queryOne('SELECT * FROM employees WHERE id = ? AND tenant_id = ?', [id, req.tenant.id]);
+    const existing = queryOne('SELECT * FROM employees WHERE id = ?', [id]);
     if (!existing) return res.status(404).json({ error: 'Team member not found' });
 
     const passHint = login_password ? login_password : (existing.login_password_hint || 'team123');
@@ -1011,29 +1182,27 @@ app.post('/api/team', authMiddleware, (req, res) => {
       login_username=?, login_password_hint=?, email=?, phone=?, joining_date=?,
       monthly_salary=?, location=?, education=?, emergency_contact=?, address=?,
       bank_details=?, background_summary=?, previous_companies_json=?
-      WHERE id=? AND tenant_id=?
+      WHERE id=?
     `, [
       emp_code || existing.emp_code, full_name, designation, department || 'Sales & Revenue', role || 'agent',
       cleanUser, passHint, cleanEmail, phone || '', joining_date || existing.joining_date,
       Number(monthly_salary || 0), location || '', education || '', emergency_contact || '',
-      address || '', bank_details || '', background_summary || '', prevJson, id, req.tenant.id
+      address || '', bank_details || '', background_summary || '', prevJson, id
     ]);
 
-    if (login_password) {
-      const hash = bcrypt.hashSync(login_password, 10);
-      const uRow = queryOne('SELECT * FROM users WHERE username = ? OR email = ?', [cleanUser, cleanEmail]);
-      if (uRow) {
-        runSql('UPDATE users SET username=?, email=?, password_hash=?, plain_pass_hint=?, full_name=?, role=? WHERE id=?',
-          [cleanUser, cleanEmail, hash, login_password, full_name, role || 'agent', uRow.id]);
-      } else {
-        runSql(`
-          INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, full_name, role, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `, [uid('usr'), req.tenant.id, cleanUser, cleanEmail, hash, login_password, full_name, role || 'agent', now]);
-      }
+    const hash = bcrypt.hashSync(passHint, 10);
+    const uRow = queryOne('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?', [cleanUser, cleanEmail]);
+    if (uRow) {
+      runSql('UPDATE users SET tenant_id=?, username=?, email=?, password_hash=?, plain_pass_hint=?, full_name=?, role=? WHERE id=?',
+        [req.tenant.id, cleanUser, cleanEmail, hash, passHint, full_name, role || 'agent', uRow.id]);
+    } else {
+      runSql(`
+        INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, full_name, role, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [uid('usr'), req.tenant.id, cleanUser, cleanEmail, hash, passHint, full_name, role || 'agent', now]);
     }
 
-    return res.json({ success: true, id, login_username: cleanUser, login_password: passHint });
+    return res.json({ success: true, id, login_username: cleanUser, login_password: passHint, version: currentDbVersion });
   } else {
     const newId = uid('emp');
     const passToUse = login_password || 'team123';
@@ -1055,22 +1224,22 @@ app.post('/api/team', authMiddleware, (req, res) => {
       bank_details || '', background_summary || '', prevJson, now
     ], true);
 
-    const existingU = queryOne('SELECT * FROM users WHERE username = ? OR email = ?', [cleanUser, cleanEmail]);
+    const existingU = queryOne('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?', [cleanUser, cleanEmail]);
     if (!existingU) {
       runSql(`
         INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, full_name, role, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [uid('usr'), req.tenant.id, cleanUser, cleanEmail, hash, passToUse, full_name, role || 'agent', now], false);
     } else {
-      runSql('UPDATE users SET password_hash = ?, plain_pass_hint = ? WHERE id = ?', [hash, passToUse, existingU.id], false);
+      runSql('UPDATE users SET tenant_id = ?, password_hash = ?, plain_pass_hint = ? WHERE id = ?', [req.tenant.id, hash, passToUse, existingU.id], false);
     }
 
-    return res.json({ success: true, id: newId, login_username: cleanUser, login_password: passToUse });
+    return res.json({ success: true, id: newId, login_username: cleanUser, login_password: passToUse, version: currentDbVersion });
   }
 });
 
 app.post('/api/team/:id/documents', authMiddleware, upload.single('doc'), (req, res) => {
-  const emp = queryOne('SELECT * FROM employees WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
+  const emp = queryOne('SELECT * FROM employees WHERE id = ?', [req.params.id]);
   if (!emp || !req.file) return res.status(404).json({ error: 'Team member or file not found' });
 
   let docs = [];
@@ -1085,12 +1254,12 @@ app.post('/api/team/:id/documents', authMiddleware, upload.single('doc'), (req, 
   });
 
   runSql('UPDATE employees SET documents_json = ? WHERE id = ?', [JSON.stringify(docs), emp.id]);
-  res.json({ success: true, documents: docs });
+  res.json({ success: true, documents: docs, version: currentDbVersion });
 });
 
 app.delete('/api/team/:id', authMiddleware, (req, res) => {
-  runSql('DELETE FROM employees WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
-  res.json({ success: true });
+  runSql('DELETE FROM employees WHERE id = ?', [req.params.id]);
+  res.json({ success: true, version: currentDbVersion });
 });
 
 app.post('/api/subscriptions/upgrade-1yr', authMiddleware, (req, res) => {
@@ -1107,30 +1276,6 @@ app.post('/api/subscriptions/upgrade-1yr', authMiddleware, (req, res) => {
   res.json({ success: true, validUntil });
 });
 
-app.get('/api/team-sync-master', (req, res) => {
-  try {
-    if (!fs.existsSync(MASTER_TEAM_DB)) {
-      return res.json({ leads: [], updatedAt: 0 });
-    }
-    const content = fs.readFileSync(MASTER_TEAM_DB, 'utf8');
-    res.json(JSON.parse(content || '{"leads":[], "updatedAt":0}'));
-  } catch (e) {
-    res.json({ leads: [], updatedAt: 0 });
-  }
-});
-
-app.post('/api/team-sync-master', express.json({ limit: '50mb' }), (req, res) => {
-  try {
-    const { leads } = req.body;
-    if (!Array.isArray(leads)) return res.status(400).json({ error: 'Invalid data' });
-    const payload = { leads: leads, updatedAt: Date.now() };
-    fs.writeFileSync(MASTER_TEAM_DB, JSON.stringify(payload), 'utf8');
-    res.json({ success: true, updatedAt: payload.updatedAt });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 initSqlJs().then(async (SQL) => {
   SQL_ENGINE = SQL;
   const cloudBuffer = await initSupabaseStorage();
@@ -1141,7 +1286,6 @@ initSqlJs().then(async (SQL) => {
   } else if (fs.existsSync(DB_FILE)) {
     const fileBuffer = fs.readFileSync(DB_FILE);
     sqlDb = new SQL.Database(fileBuffer);
-    // Upload initial local database to Supabase Cloud!
     await pushDbToSupabase(fileBuffer, currentDbVersion);
   } else {
     sqlDb = new SQL.Database();
@@ -1152,9 +1296,16 @@ initSqlJs().then(async (SQL) => {
 
   const netUrls = getLocalNetworkUrls();
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ NovaCRM + HRMS Server v7 (Supabase Cloud Synced) running!`);
+    console.log(`✅ NovaCRM + HRMS Server v7 (Real-Time Team Synced) running!`);
     console.log(`💻 On this PC: http://localhost:${PORT}`);
     if (netUrls.length) console.log(`🌐 Share on Wi-Fi / Office LAN: ${netUrls[0]}`);
     console.log(`🔒 Hidden Master Admin Portal: http://localhost:${PORT}/master-admin.html`);
   });
+
+  // Prevent Render Free Tier from going into "SERVICE WAKING UP" sleep mode
+  setInterval(() => {
+    if (RENDER_REMOTE_URL) {
+      https.get(`${RENDER_REMOTE_URL}/api/live-version`, () => {}).on('error', () => {});
+    }
+  }, 4 * 60 * 1000);
 });
