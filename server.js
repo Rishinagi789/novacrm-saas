@@ -23,7 +23,7 @@ const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'nova_super_secret_jwt_key_2026_production';
 const MASTER_ADMIN_SECRET = process.env.MASTER_ADMIN_SECRET || 'NOVA-MASTER-KEY-9988';
 const DB_FILE = path.join(__dirname, 'novacrm_production.sqlite');
-const RENDER_REMOTE_URL = (process.env.RENDER_EXTERNAL_URL || 'https://novacrm-saas.onrender.com').replace(/\/+$/, '');
+const RENDER_REMOTE_URL = (process.env.RENDER_EXTERNAL_URL || 'https://gantavyacrm-saas.onrender.com').replace(/\/+$/, '');
 const IS_RENDER_CLOUD = Boolean(process.env.RENDER || process.env.RENDER_EXTERNAL_URL);
 
 // ================= SUPABASE CLOUD POSTGRES CONNECTION (WITH IPv4 AUTO-FALLBACK) =================
