@@ -47,7 +47,6 @@ async function createWorkingPgPool(rawUrl) {
   try {
     return await tryPool(rawUrl);
   } catch (err) {
-    // If direct connection fails due to IPv6 ENETUNREACH on Render, auto-try IPv4 Session Poolers
     const match = rawUrl.match(/postgresql:\/\/([^:]+):([^@]+)@db\.([a-z0-9]+)\.supabase\.co(?::\d+)?\/(.+)/i);
     if (match) {
       const [, , password, projectRef, dbName] = match;
@@ -82,6 +81,7 @@ const upload = multer({ dest: uploadDir, limits: { fileSize: 50 * 1024 * 1024 } 
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(uploadDir));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
@@ -132,7 +132,7 @@ function fetchUrlBuffer(targetUrl, maxRedirects = 8) {
       }));
     });
     req.on('error', err => reject(err));
-    req.setTimeout(20000, () => { req.destroy(); reject(new Error('Connection timed out')); });
+    req.setTimeout(25000, () => { req.destroy(); reject(new Error('Connection timed out')); });
   });
 }
 
@@ -182,7 +182,7 @@ async function initSupabaseStorage() {
     const res = await pgPool.query('SELECT db_base64, version_ts FROM novacrm_cloud_sync WHERE id = 1');
     if (res.rows.length > 0 && res.rows[0].db_base64) {
       currentDbVersion = Number(res.rows[0].version_ts) || Date.now();
-      console.log('☁️ Loaded latest CRM database from Supabase Cloud!');
+      console.log('☁️ Loaded latest Gantavya CRM database from Supabase Cloud!');
       return Buffer.from(res.rows[0].db_base64, 'base64');
     }
   } catch (err) {
@@ -205,7 +205,6 @@ async function pushDbToSupabase(buffer, versionTs) {
           updated_at = NOW();
       `, [base64Data, versionTs]);
     }
-    // If running on Localhost PC, also bridge directly to Render Cloud so team members on Render see it immediately!
     if (!IS_RENDER_CLOUD && RENDER_REMOTE_URL) {
       await postJsonRemote(`${RENDER_REMOTE_URL}/api/cloud-db-bridge`, {
         db_base64: base64Data,
@@ -238,7 +237,6 @@ async function pullLatestFromCloudIfNewer() {
         }
       }
     } else if (!IS_RENDER_CLOUD && RENDER_REMOTE_URL) {
-      // Localhost pulls changes made by team members on Render
       const { buffer } = await fetchUrlBuffer(`${RENDER_REMOTE_URL}/api/cloud-db-bridge?since=${currentDbVersion}`);
       const data = JSON.parse(buffer.toString('utf8'));
       if (data && data.updated && data.db_base64 && Number(data.version_ts) > currentDbVersion) {
@@ -293,7 +291,6 @@ function runSql(sql, params = [], skipSave = false) {
   if (!skipSave) persistDb();
 }
 
-// Helper: Always return the Primary Shared Workspace so Admin & All Team Members see the EXACT SAME DATA
 function getPrimaryWorkspace() {
   return queryOne(`
     SELECT t.* FROM tenants t
@@ -302,7 +299,6 @@ function getPrimaryWorkspace() {
   `);
 }
 
-// Ensure all leads, employees, calendar_events, and messages belong to the Primary Shared Workspace
 function unifyAllWorkspaceRecords() {
   try {
     const primary = getPrimaryWorkspace();
@@ -313,6 +309,40 @@ function unifyAllWorkspaceRecords() {
     sqlDb.run(`UPDATE calendar_events SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
     sqlDb.run(`UPDATE messages SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
   } catch (e) {}
+}
+
+// ================= AUTOMATIC CALENDAR & PAST FOLLOW-UP CLEANUP =================
+function autoCleanupPastCalendarEvents(tenantId, forceCleanAllPast = false) {
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    sqlDb.run(`
+      UPDATE leads
+      SET followup_required = 'Not Required', followup_date = ''
+      WHERE tenant_id = ? AND stage IN ('Won', 'Lost') AND followup_date != '' AND substr(followup_date, 1, 10) < ?
+    `, [tenantId, todayStr]);
+
+    sqlDb.run(`
+      DELETE FROM calendar_events
+      WHERE tenant_id = ? AND substr(start_at, 1, 10) < ?
+      AND (lead_id = '' OR lead_id IN (SELECT id FROM leads WHERE stage IN ('Won', 'Lost')))
+    `, [tenantId, todayStr]);
+
+    if (forceCleanAllPast) {
+      sqlDb.run(`
+        UPDATE leads
+        SET followup_required = 'Not Required', followup_date = ''
+        WHERE tenant_id = ? AND followup_date != '' AND substr(followup_date, 1, 10) < ?
+      `, [tenantId, todayStr]);
+
+      sqlDb.run(`
+        DELETE FROM calendar_events
+        WHERE tenant_id = ? AND substr(start_at, 1, 10) < ?
+      `, [tenantId, todayStr]);
+      persistDb();
+    }
+  } catch (e) {
+    console.error('Calendar Auto-Cleanup Error:', e.message);
+  }
 }
 
 const SCHEMA_SQL = `
@@ -469,6 +499,10 @@ function ensureAllColumnsAndTables() {
   ensureCol('messages', 'lead_name', "TEXT DEFAULT ''");
   ensureCol('messages', 'sender_name', "TEXT DEFAULT ''");
 
+  try {
+    sqlDb.run(`UPDATE leads SET sort_order = ROWID WHERE sort_order IS NULL OR sort_order = 0`);
+  } catch (e) {}
+
   unifyAllWorkspaceRecords();
   persistDb();
 }
@@ -480,7 +514,6 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    // Always attach user to the Primary Shared Workspace so all team members share leads in real time!
     let tenant = getPrimaryWorkspace();
     if (!tenant) {
       tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [decoded.tenantId]);
@@ -506,13 +539,11 @@ function masterAdminMiddleware(req, res, next) {
   next();
 }
 
-// Live Version Check Endpoint for Real-Time Team Sync
 app.get('/api/live-version', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.json({ version: currentDbVersion });
 });
 
-// Cloud DB Bridge Endpoint (Syncs Localhost <-> Render automatically)
 app.get('/api/cloud-db-bridge', (req, res) => {
   const since = Number(req.query.since || 0);
   if (since >= currentDbVersion || !sqlDb) {
@@ -611,7 +642,6 @@ app.post('/api/auth/login', (req, res) => {
   const clean = loginId.toLowerCase().trim();
   let user = queryOne('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?', [clean, clean]);
 
-  // Also check employees table in case a team member was added in Team section
   if (!user) {
     const emp = queryOne('SELECT * FROM employees WHERE LOWER(login_username) = ? OR LOWER(email) = ?', [clean, clean]);
     if (emp && (emp.login_password_hint === password || password === 'team123')) {
@@ -651,7 +681,6 @@ app.post('/api/auth/google-or-signup', (req, res) => {
     const accessEnd = addDaysISO(7);
     const hash = password ? bcrypt.hashSync(password, 10) : bcrypt.hashSync('team123', 10);
 
-    // If a primary workspace already exists, join it so the team shares the same leads!
     let tenantId = primaryTenant ? primaryTenant.id : uid('tnt');
     let assignedRole = primaryTenant ? 'agent' : 'admin';
 
@@ -688,6 +717,8 @@ app.post('/api/auth/google-or-signup', (req, res) => {
 });
 
 app.get('/api/workspace/status', authMiddleware, (req, res) => {
+  autoCleanupPastCalendarEvents(req.tenant.id, false);
+
   const existingEmp = queryOne('SELECT COUNT(*) as c FROM employees WHERE tenant_id = ?', [req.tenant.id]);
   if (!existingEmp || existingEmp.c === 0) {
     runSql(`
@@ -712,7 +743,7 @@ app.get('/api/workspace/status', authMiddleware, (req, res) => {
 
   const stageBreakdown = queryAll('SELECT stage, COUNT(*) as count, SUM(deal_value) as total FROM leads WHERE tenant_id = ? GROUP BY stage', [req.tenant.id]);
   const sourceBreakdown = queryAll('SELECT source, COUNT(*) as count FROM leads WHERE tenant_id = ? GROUP BY source', [req.tenant.id]);
-  const recentLeads = queryAll('SELECT * FROM leads WHERE tenant_id = ? ORDER BY ROWID ASC LIMIT 35', [req.tenant.id]);
+  const recentLeads = queryAll('SELECT * FROM leads WHERE tenant_id = ? ORDER BY sort_order ASC, ROWID DESC LIMIT 35', [req.tenant.id]);
   const teamList = queryAll('SELECT id, full_name, designation, role, email, phone, login_username FROM employees WHERE tenant_id = ? ORDER BY full_name ASC', [req.tenant.id]);
 
   res.json({
@@ -746,9 +777,10 @@ app.post('/api/workspace/share-settings', authMiddleware, (req, res) => {
   res.json({ success: true, version: currentDbVersion });
 });
 
+// ================= LEADS API (NEWLY IMPORTED & CREATED LEADS ALWAYS AT TOP) =================
 app.get('/api/leads', authMiddleware, (req, res) => {
   const page = Math.max(1, parseInt(req.query.page || '1', 10));
-  const limit = Math.min(1000, Math.max(10, parseInt(req.query.limit || '50', 10)));
+  const limit = Math.min(2000, Math.max(10, parseInt(req.query.limit || '50', 10)));
   const offset = (page - 1) * limit;
   const search = (req.query.q || '').trim();
   const stage = (req.query.stage || '').trim();
@@ -766,7 +798,7 @@ app.get('/api/leads', authMiddleware, (req, res) => {
   }
 
   const total = (queryOne(`SELECT COUNT(*) as c FROM leads ${where}`, params) || { c: 0 }).c;
-  const rows = queryAll(`SELECT * FROM leads ${where} ORDER BY ROWID ASC LIMIT ? OFFSET ?`, [...params, limit, offset]);
+  const rows = queryAll(`SELECT * FROM leads ${where} ORDER BY sort_order ASC, ROWID DESC LIMIT ? OFFSET ?`, [...params, limit, offset]);
 
   res.json({ leads: rows, total, page, totalPages: Math.ceil(total / limit) || 1, version: currentDbVersion });
 });
@@ -793,6 +825,9 @@ app.post('/api/leads', authMiddleware, (req, res) => {
   const fReq = followup_required || (followup_date ? 'Required' : 'Not Required');
   const fDate = followup_date || '';
 
+  const minRow = queryOne('SELECT MIN(sort_order) as min_s FROM leads WHERE tenant_id = ?', [req.tenant.id]);
+  const topSortOrder = ((minRow && minRow.min_s !== null) ? Number(minRow.min_s) : 0) - 1;
+
   const initialHistory = activeTalk ? [{
     id: uid('nt'),
     text: activeTalk,
@@ -806,15 +841,15 @@ app.post('/api/leads', authMiddleware, (req, res) => {
     INSERT INTO leads (
       id, tenant_id, name, company, email, phone, address, links, stage,
       interest_level, talk_summary, followup_required, followup_date, notes_history_json,
-      extra_data_json, qualified_by, deal_value, source, priority, owner_name, notes, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?, ?, ?, ?, ?, ?)
+      extra_data_json, qualified_by, deal_value, source, priority, owner_name, notes, sort_order, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
     newId, req.tenant.id, name || company, company || name, email || '', phone || '',
     address || '', links || '', activeStage, activeInterest,
     activeTalk, fReq, fDate, JSON.stringify(initialHistory),
     ['Qualified', 'Proposal Sent', 'Negotiation', 'Won'].includes(activeStage) ? assignedOwner : '',
     Number(deal_value || 0), source || 'Manual',
-    priority || 'medium', assignedOwner, activeTalk, now
+    priority || 'medium', assignedOwner, activeTalk, topSortOrder, now
   ]);
 
   if (fReq === 'Required' && fDate) {
@@ -933,6 +968,24 @@ app.post('/api/leads/bulk-assign', authMiddleware, (req, res) => {
   res.json({ success: true, count: ids.length, version: currentDbVersion });
 });
 
+// Server-side File Parse Fallback Endpoint (in case browser XLSX CDN is blocked or slow)
+app.post('/api/leads/parse-file', authMiddleware, upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  try {
+    const buf = fs.readFileSync(req.file.path);
+    const wb = XLSX.read(buf, { type: 'buffer' });
+    const sheetsData = {};
+    (wb.SheetNames || []).forEach(name => {
+      sheetsData[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '' });
+    });
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
+    res.json({ success: true, sheetNames: wb.SheetNames || [], sheetsData });
+  } catch (e) {
+    try { fs.unlinkSync(req.file.path); } catch (err) {}
+    res.status(400).json({ error: 'Failed to parse file: ' + e.message });
+  }
+});
+
 app.post('/api/leads/fetch-google-sheet', authMiddleware, async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'Please paste a Google Sheet link' });
@@ -961,14 +1014,20 @@ app.post('/api/leads/fetch-google-sheet', authMiddleware, async (req, res) => {
         if (contentType.includes('text/html') || sampleStr.includes('accounts.google.com') || sampleStr.trim().startsWith('<!DOCTYPE html>')) {
           continue;
         }
-        if (ep.type === 'xlsx') {
-          return res.json({ success: true, base64Xlsx: buffer.toString('base64') });
-        } else {
-          const csvText = buffer.toString('utf8');
-          if (csvText && csvText.trim().length > 0) {
-            return res.json({ success: true, csvText });
-          }
-        }
+        // Also parse on server using XLSX so browser gets ready-to-use sheet matrix immediately
+        const wb = XLSX.read(buffer, { type: 'buffer' });
+        const sheetsData = {};
+        (wb.SheetNames || []).forEach(name => {
+          sheetsData[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '' });
+        });
+
+        return res.json({
+          success: true,
+          sheetNames: wb.SheetNames || [],
+          sheetsData,
+          base64Xlsx: ep.type === 'xlsx' ? buffer.toString('base64') : undefined,
+          csvText: ep.type === 'csv' ? buffer.toString('utf8') : undefined
+        });
       } catch (innerErr) {}
     }
 
@@ -978,6 +1037,7 @@ app.post('/api/leads/fetch-google-sheet', authMiddleware, async (req, res) => {
   }
 });
 
+// ================= IMPORT LEADS AT THE TOP OF THE LIST (PRESERVING SHEET ORDER) =================
 app.post('/api/leads/import-mapped', authMiddleware, (req, res) => {
   const { leads, source, assignTo } = req.body;
   if (!Array.isArray(leads) || leads.length === 0) return res.status(400).json({ error: 'No leads to import' });
@@ -985,6 +1045,10 @@ app.post('/api/leads/import-mapped', authMiddleware, (req, res) => {
   const baseTime = Date.now();
   const defaultOwner = assignTo || req.user.name;
   let importedCount = 0;
+
+  const minRow = queryOne('SELECT MIN(sort_order) as min_s FROM leads WHERE tenant_id = ?', [req.tenant.id]);
+  const currentMinSort = (minRow && minRow.min_s !== null) ? Number(minRow.min_s) : 0;
+  const batchStartSortOrder = currentMinSort - (leads.length + 10);
 
   sqlDb.run('BEGIN TRANSACTION');
   for (let i = 0; i < leads.length; i++) {
@@ -1008,6 +1072,7 @@ app.post('/api/leads/import-mapped', authMiddleware, (req, res) => {
 
     const rowTime = new Date(baseTime + i).toISOString();
     const history = talk ? [{ id: uid('nt'), text: talk, stage, interest, author: owner, at: rowTime }] : [];
+    const leadId = uid('ld');
 
     sqlDb.run(`
       INSERT INTO leads (
@@ -1016,10 +1081,18 @@ app.post('/api/leads/import-mapped', authMiddleware, (req, res) => {
         extra_data_json, qualified_by, deal_value, source, owner_name, notes, sort_order, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?)
     `, [
-      uid('ld'), req.tenant.id, name || company, company || name, email, phone,
+      leadId, req.tenant.id, name || company, company || name, email, phone,
       address, links, stage, interest, talk, fReq, fDate, JSON.stringify(history),
-      extraJson, val, source || 'Import', owner, talk, i + 1, rowTime
+      extraJson, val, source || 'Import', owner, talk, batchStartSortOrder + i, rowTime
     ]);
+
+    if (fReq === 'Required' && fDate) {
+      sqlDb.run(`
+        INSERT INTO calendar_events (id, tenant_id, title, event_type, start_at, end_at, lead_id, notes, status, created_at)
+        VALUES (?, ?, ?, 'followup', ?, ?, ?, ?, 'Scheduled', ?)
+      `, [uid('evt'), req.tenant.id, `📞 Follow-up: ${company || name}`, fDate, fDate, leadId, talk, rowTime]);
+    }
+
     importedCount++;
   }
   sqlDb.run('COMMIT');
@@ -1053,6 +1126,7 @@ app.post('/api/leads/bulk-delete', authMiddleware, (req, res) => {
 });
 
 app.get('/api/calendar', authMiddleware, (req, res) => {
+  autoCleanupPastCalendarEvents(req.tenant.id, false);
   const calEvents = queryAll('SELECT * FROM calendar_events WHERE tenant_id = ? ORDER BY start_at ASC', [req.tenant.id]);
   const leadFollowups = queryAll(`
     SELECT id, company, name, phone, stage, interest_level, talk_summary, followup_date, owner_name
@@ -1062,6 +1136,11 @@ app.get('/api/calendar', authMiddleware, (req, res) => {
   `, [req.tenant.id]);
 
   res.json({ events: calEvents, leadFollowups, version: currentDbVersion });
+});
+
+app.post('/api/calendar/cleanup-past', authMiddleware, (req, res) => {
+  autoCleanupPastCalendarEvents(req.tenant.id, true);
+  res.json({ success: true, version: currentDbVersion });
 });
 
 app.post('/api/calendar', authMiddleware, (req, res) => {
@@ -1122,7 +1201,7 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
 
 app.get('/api/team', authMiddleware, (req, res) => {
   const rows = queryAll('SELECT * FROM employees WHERE tenant_id = ? ORDER BY created_at DESC', [req.tenant.id]);
-  const allLeads = queryAll('SELECT id, company, name, phone, stage, interest_level, talk_summary, deal_value, followup_date, owner_name, qualified_by FROM leads WHERE tenant_id = ? ORDER BY ROWID ASC', [req.tenant.id]);
+  const allLeads = queryAll('SELECT id, company, name, phone, stage, interest_level, talk_summary, deal_value, followup_date, owner_name, qualified_by FROM leads WHERE tenant_id = ? ORDER BY sort_order ASC, ROWID DESC', [req.tenant.id]);
 
   const employees = rows.map(r => {
     let prevCos = [];
@@ -1276,6 +1355,11 @@ app.post('/api/subscriptions/upgrade-1yr', authMiddleware, (req, res) => {
   res.json({ success: true, validUntil });
 });
 
+// JSON 404 Handler for any unknown /api/* route so frontend never gets HTML parse errors
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl}` });
+});
+
 initSqlJs().then(async (SQL) => {
   SQL_ENGINE = SQL;
   const cloudBuffer = await initSupabaseStorage();
@@ -1296,13 +1380,12 @@ initSqlJs().then(async (SQL) => {
 
   const netUrls = getLocalNetworkUrls();
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ NovaCRM + HRMS Server v7 (Real-Time Team Synced) running!`);
+    console.log(`✅ Gantavya CRM + HRMS Server (Real-Time Team Synced) running!`);
     console.log(`💻 On this PC: http://localhost:${PORT}`);
     if (netUrls.length) console.log(`🌐 Share on Wi-Fi / Office LAN: ${netUrls[0]}`);
     console.log(`🔒 Hidden Master Admin Portal: http://localhost:${PORT}/master-admin.html`);
   });
 
-  // Prevent Render Free Tier from going into "SERVICE WAKING UP" sleep mode
   setInterval(() => {
     if (RENDER_REMOTE_URL) {
       https.get(`${RENDER_REMOTE_URL}/api/live-version`, () => {}).on('error', () => {});

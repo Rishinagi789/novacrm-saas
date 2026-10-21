@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NovaCRM — Enterprise CRM & Team HRMS</title>
+<title>Gantavya CRM — Enterprise CRM & Team HRMS</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -85,7 +85,7 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   color:#fff;display:flex;align-items:center;justify-content:center;padding:56px;position:relative;overflow:hidden
 }
 .login-aside-inner{position:relative;z-index:1;max-width:440px}
-.login-aside h1{font-size:38px;margin:18px 0 10px;letter-spacing:-.02em}
+.login-aside h1{font-size:38px;margin:10px 0 10px;letter-spacing:-.02em}
 .login-tag{font-size:15.5px;opacity:.92;line-height:1.6}
 .login-features{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:11px}
 .login-features li{display:flex;gap:11px;align-items:center;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);padding:10px 14px;border-radius:11px;font-size:13.5px}
@@ -100,15 +100,43 @@ textarea{resize:vertical;min-height:70px}
 .logo-mark.sm{width:32px;height:32px;border-radius:9px;font-size:15px}
 .logo-mark.lg{width:54px;height:54px;border-radius:15px;font-size:24px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3)}
 
-/* App Shell */
+/* App Shell & Premium Rivo 3D Character touching 'G' */
 .app{display:flex;min-height:100vh}
 .sidebar{
-  width:232px;flex:0 0 232px;background:#fff;border-right:1px solid var(--border);
+  width:242px;flex:0 0 242px;background:#fff;border-right:1px solid var(--border);
   display:flex;flex-direction:column;position:sticky;top:0;height:100vh;z-index:30
 }
-.sidebar-brand{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
-.brand-name{font-weight:750;font-size:15px}
-.brand-sub{font-size:11.5px;color:var(--muted-2);font-weight:500}
+.sidebar-brand{
+  display:flex;align-items:flex-end;gap:0;padding:12px 14px 12px 4px;
+  border-bottom:1px solid var(--border);position:relative;min-height:74px
+}
+.rivo-brand-wrap{
+  position:relative;display:flex;align-items:flex-end;flex-shrink:0;
+  margin-right:-18px;z-index:2;
+}
+.rivo-mascot{
+  width:68px;height:68px;object-fit:contain;display:block;
+  filter:drop-shadow(2px 5px 8px rgba(15,23,42,.22));
+  transform:translateY(4px);
+  transition:transform .2s ease;
+}
+.sidebar-brand:hover .rivo-mascot{
+  transform:translateY(1px) scale(1.05);
+}
+.sb-brand-text{
+  display:flex;flex-direction:column;justify-content:center;
+  padding-bottom:6px;position:relative;z-index:1;
+}
+.brand-name{
+  font-weight:900;font-size:18px;letter-spacing:-.035em;color:var(--text);
+  line-height:1.05;display:flex;align-items:baseline;font-family:var(--sans);
+}
+.brand-name .g-letter{
+  font-size:25px;font-weight:950;color:var(--primary);
+  margin-right:0.5px;display:inline-block;text-shadow:0 1px 3px rgba(79,70,229,.25);
+}
+.brand-sub{font-size:10.8px;color:var(--muted-2);font-weight:600;margin-top:2px;padding-left:1px;letter-spacing:.03em}
+
 .nav{flex:1;overflow-y:auto;padding:10px 10px 16px}
 .nav-label{font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted-2);font-weight:700;padding:12px 10px 5px}
 .nav-item{
@@ -179,6 +207,27 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 14px;border-bottom:1px solid var(--border)}
 .toolbar select,.toolbar input{width:auto;padding:5px 9px;font-size:12px}
 
+/* Direct Call & Action Mini Buttons */
+.call-action-wrap{display:inline-flex;align-items:center;gap:5px}
+.call-btn{
+  display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;
+  border-radius:6px;background:#dcfce7;color:#15803d;border:1px solid #86efac;
+  text-decoration:none;font-size:12px;transition:.14s;cursor:pointer;
+}
+.call-btn:hover{background:#15803d;color:#fff}
+.wa-mini-btn{
+  display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;
+  border-radius:6px;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;
+  text-decoration:none;font-size:12px;transition:.14s;cursor:pointer;
+}
+.wa-mini-btn:hover{background:#0284c7;color:#fff}
+.del-mini-btn{
+  display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;
+  border-radius:6px;background:var(--danger-soft);color:var(--danger);border:1px solid #fecaca;
+  cursor:pointer;font-size:12px;transition:.14s;
+}
+.del-mini-btn:hover{background:var(--danger);color:#fff}
+
 /* Compact Color-Coded Stage & Interest Controls */
 .stage-badge{
   display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
@@ -199,7 +248,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 }
 .compact-input{
   padding:3px 8px;border-radius:7px;font-size:11.8px;border:1px solid var(--border);
-  background:var(--panel-2);height:27px;min-width:135px;flex:1
+  background:var(--panel-2);height:27px;min-width:125px;flex:1
 }
 .compact-input:focus{background:#fff}
 .compact-date{
@@ -213,7 +262,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
   margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap
 }
 
-/* Compact FullCalendar Overrides */
+/* Clean & Modern FullCalendar Overrides */
 .fc{font-size:11.8px !important;--fc-border-color:var(--border);--fc-today-bg-color:var(--primary-soft)}
 .fc .fc-toolbar.fc-header-toolbar{margin-bottom:10px !important}
 .fc .fc-toolbar-title{font-size:14.5px !important;font-weight:750}
@@ -242,7 +291,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .kcard{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;cursor:grab;box-shadow:var(--shadow-sm);transition:.14s}
 .kcard:hover{box-shadow:var(--shadow);border-color:var(--border-2);transform:translateY(-1px)}
 
-/* Right-Side Detail Drawer */
+/* Right-Side Notepad Detail Drawer */
 .drawer-root{position:fixed;inset:0;z-index:55;display:none}
 .drawer-root.open{display:block}
 .drawer-bg{position:absolute;inset:0;background:rgba(15,23,42,.42)}
@@ -289,13 +338,16 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 <div id="loginScreen" class="login-screen">
   <div class="login-aside">
     <div class="login-aside-inner">
-      <div class="logo-mark lg">N</div>
-      <h1>NovaCRM</h1>
+      <div style="display:flex;align-items:flex-end;gap:0px">
+        <img src="/uploads/rivo-character.png" alt="Rivo" style="width:82px;height:82px;object-fit:contain;margin-right:-14px;z-index:2;filter:drop-shadow(2px 6px 10px rgba(0,0,0,.28))" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+        <div class="logo-mark lg" style="display:none">G</div>
+        <h1><span style="font-size:48px;font-weight:950;color:#fff">G</span>antavya CRM</h1>
+      </div>
       <p class="login-tag">Import leads, work the pipeline, close deals — and track every team member's performance.</p>
       <ul class="login-features">
         <li><span>📥</span> Multi-Sheet Excel &amp; Google Sheets Import (Choose 1 or Import All Sheets)</li>
-        <li><span>🧩</span> Color-coded stages &amp; drag-and-drop sales pipeline</li>
-        <li><span>⏰</span> Follow-up reminders &amp; compact interactive calendar</li>
+        <li><span>🧩</span> Color-coded stages, direct calls &amp; drag-and-drop sales pipeline</li>
+        <li><span>⏰</span> Follow-up reminders &amp; clean auto-managed calendar</li>
         <li><span>👥</span> Team Email/Link Invites + Working vs Qualified leads + HRMS</li>
         <li><span>💬</span> WhatsApp &amp; email outreach</li>
       </ul>
@@ -309,8 +361,11 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
       </div>
 
       <form id="loginForm" onsubmit="UI.login(event)" autocomplete="off">
-        <div class="logo-mark sm">N</div>
-        <h2 style="margin-top:12px">Sign in</h2>
+        <div style="display:flex;align-items:flex-end;gap:0px;margin-bottom:4px">
+          <img src="/uploads/rivo-character.png" alt="Rivo" style="width:52px;height:52px;object-fit:contain;margin-right:-10px;z-index:2" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+          <div class="logo-mark sm" style="display:none">G</div>
+          <h2 style="margin:0"><span style="color:var(--primary);font-weight:950">G</span>antavya CRM</h2>
+        </div>
         <p class="muted sm" id="loginSubMsg">Enter your User ID/Email and password.</p>
         <label class="field">
           <span>User ID or Email</span>
@@ -348,9 +403,12 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 <div id="app" class="app hidden">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <div class="logo-mark sm">N</div>
+      <div class="rivo-brand-wrap">
+        <img src="/uploads/rivo-character.png" alt="Rivo 3D Character" class="rivo-mascot" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+        <div class="logo-mark sm" style="display:none;margin-right:10px">G</div>
+      </div>
       <div class="sb-brand-text">
-        <div class="brand-name">NovaCRM</div>
+        <div class="brand-name"><span class="g-letter">G</span>antavya CRM</div>
         <div class="brand-sub" id="brandCompany">Your Company</div>
       </div>
     </div>
@@ -406,7 +464,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
     <header class="topbar">
       <div class="topbar-title">
         <h1 id="pageTitle">Dashboard</h1>
-        <p id="pageSubtitle" class="muted sm">Double-click any Company Name to open full imported details &amp; notes</p>
+        <p id="pageSubtitle" class="muted sm">Double-click any Company Name to open Notepad Drawer with notes history, address &amp; website</p>
       </div>
       <div class="topbar-actions">
         <div class="search-wrap">
@@ -478,6 +536,33 @@ const CLASSIFY_FIELDS = [
   { key: 'owner_name', label: '👥 Assigned Team Member' }
 ];
 
+function parseCsvMatrixFallback(csvText) {
+  const rows = [];
+  let row = [], cur = '', inQuotes = false;
+  for (let i = 0; i < csvText.length; i++) {
+    const ch = csvText[i], nxt = csvText[i + 1];
+    if (inQuotes) {
+      if (ch === '"' && nxt === '"') { cur += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else cur += ch;
+    } else {
+      if (ch === '"') inQuotes = true;
+      else if (ch === ',') { row.push(cur.trim()); cur = ''; }
+      else if (ch === '\n' || (ch === '\r' && nxt === '\n')) {
+        if (ch === '\r') i++;
+        row.push(cur.trim());
+        if (row.some(cell => cell !== '')) rows.push(row);
+        row = []; cur = '';
+      } else cur += ch;
+    }
+  }
+  if (cur !== '' || row.length > 0) {
+    row.push(cur.trim());
+    if (row.some(cell => cell !== '')) rows.push(row);
+  }
+  return rows;
+}
+
 const API = {
   token: localStorage.getItem('nova_jwt') || null,
   headers() {
@@ -487,7 +572,11 @@ const API = {
     const res = await fetch(url, { ...opts, headers: { ...this.headers(), ...(opts.headers || {}) } });
     const text = await res.text();
     let data = {};
-    try { data = JSON.parse(text); } catch (e) { throw new Error('Server connection error. Please refresh.'); }
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Endpoint ${url} returned invalid response. Please restart server.js in terminal.`);
+    }
     if (!res.ok) throw new Error(data.error || 'Request failed');
     if (data.version && typeof window.__updateKnownDbVersion === 'function') {
       window.__updateKnownDbVersion(data.version);
@@ -505,7 +594,7 @@ const UI = {
   leadFilter: { q: '', stage: '', owner: '', page: 1 },
   showCompletedBatches: false,
   currentWorkbook: null,
-  importState: { source: 'Excel', sheetNames: [], selectedSheet: '__ALL__', headers: [], rawRows: [], mapping: {} },
+  importState: { source: 'Excel', sheetNames: [], sheetsData: {}, selectedSheet: '__ALL__', headers: [], rawRows: [], mapping: {} },
   hasShownStartupFollowupAlert: false,
 
   esc(s) {
@@ -549,7 +638,6 @@ const UI = {
     return 'stage-yellow';
   },
 
-  // 35-Lead Batch Splitter: Moves a 35-lead batch to Completed only when ALL 35 leads have Stage != 'New'
   splitLeadsIntoBatches35(allLeads = []) {
     const BATCH_SIZE = 35;
     const activeList = [];
@@ -573,7 +661,7 @@ const UI = {
     if (invU) {
       document.getElementById('l_user').value = invU;
       if (invP) document.getElementById('l_pass').value = invP;
-      document.getElementById('loginSubMsg').innerHTML = `<b style="color:var(--primary)">🎉 Team Invite Detected! Click "Sign in" below to enter workspace.</b>`;
+      document.getElementById('loginSubMsg').innerHTML = `<b style="color:var(--primary)">🎉 Team Invite Detected! Click "Sign in" below to enter Gantavya CRM.</b>`;
       if (invU && invP && !API.token) {
         try {
           const data = await API.req('/api/auth/login', {
@@ -687,7 +775,7 @@ const UI = {
     if (days <= 10) {
       pop.classList.remove('hidden');
       document.getElementById('expPopTitle').textContent = days <= 0 ? '🔒 Subscription Expired' : `⏳ ${days} Day(s) Left in Subscription`;
-      document.getElementById('expPopBody').textContent = `Renew your 1-Year Subscription to keep uninterrupted CRM & Team access.`;
+      document.getElementById('expPopBody').textContent = `Renew your 1-Year Subscription to keep uninterrupted Gantavya CRM & Team access.`;
     } else {
       pop.classList.add('hidden');
     }
@@ -761,18 +849,21 @@ const UI = {
     document.getElementById('notifPop')?.classList.add('hidden');
     document.querySelectorAll('#nav .nav-item').forEach(b => b.classList.toggle('active', b.dataset.route === route));
     const meta = {
-      dashboard: ['Dashboard', 'Double-click any Company Name to open full imported details, address, links & conversation history'],
-      leads: ['Leads', 'Leads are shown in exact sheet order (First row on top). Changes sync across all team members automatically.'],
+      dashboard: ['Dashboard', 'Double-click any Company Name to open Notepad Drawer with notes history, address & website'],
+      leads: ['Leads', 'Newly imported leads always appear at the TOP. Double-click any lead to open the Notepad Drawer.'],
       pipeline: ['Pipeline', 'Drag and drop deals across stages: New, Contacted, Qualified, Proposal Sent, Negotiation, Won, Lost'],
-      calendar: ['Calendar & Follow-up Schedule', 'Compact view of all scheduled client follow-ups and reminders'],
+      calendar: ['Calendar & Follow-up Schedule', 'Clean interactive calendar with automatic past follow-up management'],
       messages: ['Messages', 'Send WhatsApp & Email messages directly to leads or team members'],
-      reports: ['Reports', 'Stage conversion analytics & team performance breakdown'],
+      reports: ['Reports', 'Advanced stage conversion analytics & team performance breakdown'],
       team: ['Team & HRMS', 'Invite team members via Email/Magic Link, assign leads & view full HRMS profiles'],
-      settings: ['Settings & Sharing', 'Configure CRM sharing URL, Email SMTP & 1-Year subscription billing']
+      settings: ['Settings & Sharing', 'Configure Gantavya CRM sharing URL, Email SMTP & 1-Year subscription billing']
     };
-    const [t, s] = meta[route] || ['NovaCRM', ''];
+    const [t, s] = meta[route] || ['Gantavya CRM', ''];
     document.getElementById('pageTitle').textContent = t;
     document.getElementById('pageSubtitle').textContent = s;
+
+    const root = document.getElementById('viewRoot');
+    root.innerHTML = `<div class="card card-pad muted">Loading ${this.esc(t)}...</div>`;
 
     if (route === 'dashboard') this.renderDashboard();
     else if (route === 'leads') this.renderLeads();
@@ -786,7 +877,7 @@ const UI = {
 
   renderLeadTableRows(leads) {
     if (!leads || leads.length === 0) {
-      return `<tr><td colspan="7" style="text-align:center;padding:30px" class="muted">No leads in this view. Click <b>Import</b> or switch between Active / Completed Batches.</td></tr>`;
+      return `<tr><td colspan="8" style="text-align:center;padding:30px" class="muted">No leads in this view. Click <b>Import</b> or switch between Active / Completed Batches.</td></tr>`;
     }
 
     const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
@@ -801,19 +892,29 @@ const UI = {
       const companyTitle = l.company || l.name || 'Unnamed Company';
       const currentOwner = l.owner_name || this.workspace?.user?.name || 'Admin';
 
+      const rawDigits = String(l.phone || '').replace(/\D/g, '');
+      const waDigits = rawDigits.length === 10 ? '91' + rawDigits : rawDigits;
+
       return `
         <tr class="${isSel ? 'row-selected' : ''}" ondblclick="UI.openLeadDrawer('${l.id}')">
           <td onclick="event.stopPropagation()" style="width:32px">
             <input type="checkbox" class="chk" ${isSel ? 'checked' : ''} onchange="UI.toggleSelectLead('${l.id}', this.checked)" />
           </td>
           <td>
-            <div class="company-cell" onclick="UI.openLeadDrawer('${l.id}')" title="Click or Double-click to open full details, address, links & conversation history">
+            <div class="company-cell" onclick="UI.openLeadDrawer('${l.id}')" title="Double-click or click to open Notepad Drawer (Notes History, Address, Website)">
               <div class="avatar">${this.initials(companyTitle)}</div>
-              <b>${this.esc(companyTitle)}</b>
+              <div>
+                <b>${this.esc(companyTitle)}</b>
+                <span class="stage-badge ${intCls}" style="font-size:9.8px;padding:1px 6px;margin-left:5px">${this.esc(l.interest_level || 'Mid / Follow-up')}</span>
+              </div>
             </div>
           </td>
-          <td class="mono" style="font-weight:600;white-space:nowrap">
-            ${this.esc(l.phone || '—')}
+          <td class="mono" style="font-weight:600;white-space:nowrap" onclick="event.stopPropagation()">
+            <div class="call-action-wrap">
+              ${rawDigits ? `<a href="tel:${this.esc(rawDigits)}" class="call-btn" title="Direct Phone Call (${this.esc(l.phone)})">📞</a>` : ''}
+              ${waDigits ? `<a href="https://wa.me/${this.esc(waDigits)}" target="_blank" class="wa-mini-btn" title="WhatsApp Chat">💬</a>` : ''}
+              <span>${this.esc(l.phone || '—')}</span>
+            </div>
           </td>
           <td onclick="event.stopPropagation()">
             <select class="compact-select ${stageCls}" onchange="UI.quickUpdateLead('${l.id}', { stage: this.value }, this)">
@@ -842,9 +943,22 @@ const UI = {
               ${teamOpts.map(name => `<option value="${this.esc(name)}" ${currentOwner === name ? 'selected' : ''}>👤 ${this.esc(name)}</option>`).join('')}
             </select>
           </td>
+          <td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">
+            <button class="del-mini-btn" onclick="UI.deleteSingleLeadRow('${l.id}')" title="Delete this lead">🗑️</button>
+          </td>
         </tr>
       `;
     }).join('');
+  },
+
+  async deleteSingleLeadRow(leadId) {
+    if (!confirm('Delete this lead permanently?')) return;
+    await API.req(`/api/leads/${leadId}`, { method: 'DELETE' });
+    this.selectedLeadIds.delete(leadId);
+    this.flashSaved('✓ Lead Deleted');
+    await this.refreshWorkspace();
+    if (this.route === 'dashboard') this.renderDashboard();
+    else this.renderLeads();
   },
 
   /* ==================== 1. DASHBOARD VIEW ==================== */
@@ -895,7 +1009,7 @@ const UI = {
 
       <div class="card" style="margin-top:14px">
         <div class="card-head">
-          <h3>${this.showCompletedBatches ? `✅ Completed 35-Lead Batches (${completedList.length})` : `🔥 Active 35-Lead Batch Queue (${ displayRows.length } of ${activeList.length} Active)`}</h3>
+          <h3>${this.showCompletedBatches ? `✅ Completed 35-Lead Batches (${completedList.length})` : `🔥 Active 35-Lead Batch Queue (${ displayRows.length } of ${activeList.length} Active — Latest Imported On Top)`}</h3>
           <span class="spacer"></span>
           <button class="btn btn-sm ${this.showCompletedBatches ? 'btn-primary' : ''}" onclick="UI.showCompletedBatches=!UI.showCompletedBatches;UI.renderDashboard()">
             ${this.showCompletedBatches ? `⬅️ Back to Active Queue (${activeList.length})` : `✅ Completed Batches (${completedList.length})`}
@@ -907,12 +1021,13 @@ const UI = {
             <thead>
               <tr>
                 <th style="width:32px"></th>
-                <th>Company Name</th>
-                <th>Contact No</th>
+                <th>Company &amp; Interest Badge</th>
+                <th>Direct Call &amp; Contact No</th>
                 <th>Stage</th>
-                <th>Notes</th>
+                <th>Interest &amp; Notes</th>
                 <th>Follow-up</th>
                 <th>Assigned To</th>
+                <th style="text-align:right">Del</th>
               </tr>
             </thead>
             <tbody>
@@ -971,7 +1086,7 @@ const UI = {
             <button class="btn btn-sm btn-danger" onclick="UI.deleteSelectedLeads()">🗑️ Delete Selected (${this.selectedLeadIds.size})</button>
           ` : ''}
 
-          ${allMatching.length > 0 ? `<button class="btn btn-sm btn-danger" style="margin-left:auto" onclick="UI.deleteAllLeads()">🗑️ Delete All (${allMatching.length.toLocaleString()})</button>` : ''}
+          ${allMatching.length > 0 ? `<button class="btn btn-sm btn-danger" style="margin-left:auto" onclick="UI.deleteAllLeads()">🗑️ Delete All Leads (${allMatching.length.toLocaleString()})</button>` : ''}
         </div>
 
         <div class="table-wrap">
@@ -981,12 +1096,13 @@ const UI = {
                 <th style="width:32px">
                   <input type="checkbox" class="chk" ${allSel ? 'checked' : ''} onchange="UI.toggleSelectAllPage(this.checked)" title="Select All on Page" />
                 </th>
-                <th>Company Name</th>
-                <th>Contact No</th>
+                <th>Company &amp; Interest Badge</th>
+                <th>Direct Call &amp; Contact No</th>
                 <th>Stage</th>
-                <th>Notes</th>
+                <th>Interest &amp; Notes</th>
                 <th>Follow-up</th>
                 <th>Assigned To</th>
+                <th style="text-align:right">Del</th>
               </tr>
             </thead>
             <tbody>
@@ -996,7 +1112,7 @@ const UI = {
         </div>
 
         <div class="card-head" style="border-top:1px solid var(--border);border-bottom:none">
-          <span class="muted sm">Batch Page <b>${f.page}</b> of <b>${totalPages}</b> (35 leads per batch — shifts to Completed automatically when all 35 are worked)</span>
+          <span class="muted sm">Batch Page <b>${f.page}</b> of <b>${totalPages}</b> (35 leads per batch — Newly imported leads always sit on Top)</span>
           <span class="spacer"></span>
           <button class="btn btn-sm" ${f.page <= 1 ? 'disabled' : ''} onclick="UI.leadFilter.page--;UI.renderLeads()">← Prev Batch</button>
           <button class="btn btn-sm" ${f.page >= totalPages ? 'disabled' : ''} onclick="UI.leadFilter.page++;UI.renderLeads()">Next Batch →</button>
@@ -1038,14 +1154,14 @@ const UI = {
       this.flashSaved('✓ Synced with Team');
       await this.refreshWorkspace();
       if (this.route === 'pipeline') this.renderPipeline();
-      else if (this.route === 'dashboard' && patch.stage) this.renderDashboard();
-      else if (this.route === 'leads' && patch.stage) this.renderLeads();
+      else if (this.route === 'dashboard' && (patch.stage || patch.interest_level)) this.renderDashboard();
+      else if (this.route === 'leads' && (patch.stage || patch.interest_level)) this.renderLeads();
     } catch (e) {
       alert('Failed to save update: ' + e.message);
     }
   },
 
-  /* ==================== DOUBLE-CLICK COMPANY DRAWER ==================== */
+  /* ==================== DOUBLE-CLICK NOTEPAD DRAWER ==================== */
   async openLeadDrawer(id) {
     const { lead } = await API.req(`/api/leads/${id}`);
     if (!lead) return;
@@ -1060,6 +1176,8 @@ const UI = {
     const companyTitle = lead.company || lead.name || 'Company Details';
     const rawLink = (lead.links || '').trim();
     const safeHref = rawLink ? (/^https?:\/\//i.test(rawLink) ? rawLink : `https://${rawLink}`) : '';
+    const rawDigits = String(lead.phone || '').replace(/\D/g, '');
+    const waDigits = rawDigits.length === 10 ? '91' + rawDigits : rawDigits;
 
     const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
     if (!teamOpts.includes(this.workspace?.user?.name)) teamOpts.unshift(this.workspace?.user?.name || 'Admin');
@@ -1072,14 +1190,16 @@ const UI = {
         <div class="drawer-head">
           <div class="avatar" style="width:42px;height:42px;font-size:15px">${this.initials(companyTitle)}</div>
           <div style="flex:1;min-width:0">
-            <h2>${this.esc(companyTitle)}</h2>
+            <h2>📒 ${this.esc(companyTitle)}</h2>
             <div class="muted sm">
               Assigned To: <b>${this.esc(lead.owner_name || 'Admin')}</b>
-              ${lead.qualified_by ? ` • Qualified/Completed By: <b style="color:var(--success)">${this.esc(lead.qualified_by)}</b>` : ''}
+              ${lead.qualified_by ? ` • Qualified By: <b style="color:var(--success)">${this.esc(lead.qualified_by)}</b>` : ''}
             </div>
-            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
               <span class="stage-badge ${stageCls}">Stage: ${this.esc(lead.stage)}</span>
               <span class="stage-badge ${intCls}">${this.esc(lead.interest_level || 'Mid / Follow-up')}</span>
+              ${rawDigits ? `<a href="tel:${this.esc(rawDigits)}" class="btn btn-sm btn-success" style="padding:2px 8px;text-decoration:none">📞 Call</a>` : ''}
+              ${waDigits ? `<a href="https://wa.me/${this.esc(waDigits)}" target="_blank" class="btn btn-sm" style="padding:2px 8px;text-decoration:none">💬 WhatsApp</a>` : ''}
             </div>
           </div>
           <button class="btn btn-sm btn-danger" onclick="UI.deleteLeadFromDrawer('${lead.id}')">🗑️ Delete</button>
@@ -1087,12 +1207,38 @@ const UI = {
         </div>
 
         <div class="drawer-body">
+          <div class="card card-pad" style="margin-bottom:13px;border-left:4px solid var(--primary)">
+            <h4 style="margin-bottom:7px">📝 Lead Notepad — Add New Note / Call Summary</h4>
+            <textarea id="dr_new_note" placeholder="Write what was discussed with the client today..."></textarea>
+            <div style="display:flex;justify-content:flex-end;margin-top:7px">
+              <button class="btn btn-primary btn-sm" onclick="UI.addNoteInDrawer('${lead.id}')">+ Save Note to History</button>
+            </div>
+          </div>
+
+          <h4 style="margin-bottom:8px">📜 Previous Notes History (${history.length})</h4>
+          <div style="margin-bottom:14px">
+            ${history.map(n => `
+              <div class="note-card">
+                <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                  <span class="stage-badge ${this.getStageBadgeClass(n.stage, n.interest)}" style="font-size:10px;padding:1px 7px">${this.esc(n.stage || 'Note')} • ${this.esc(n.author || 'Team')}</span>
+                  <small class="muted">${new Date(n.at).toLocaleString()}</small>
+                </div>
+                <p style="font-size:12.8px;white-space:pre-wrap">${this.esc(n.text)}</p>
+              </div>
+            `).join('') || `<div class="note-card"><p>${this.esc(lead.talk_summary || lead.notes || 'No conversation notes recorded yet.')}</p></div>`}
+          </div>
+
           <div class="card card-pad" style="background:var(--panel-2);margin-bottom:13px">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
-              <h4>✏️ Company Details, Address &amp; Website</h4>
-              <button class="btn btn-primary btn-sm" onclick="UI.saveDrawerEdits('${lead.id}')">💾 Save Changes</button>
+              <h4>📍 Company Address, Website &amp; Contact Details</h4>
+              <button class="btn btn-primary btn-sm" onclick="UI.saveDrawerEdits('${lead.id}')">💾 Save Details</button>
             </div>
             <div class="form-grid">
+              <label class="full"><span>📍 Full Address / Location</span><input id="dr_addr" value="${this.esc(lead.address || '')}" placeholder="Full factory / office address..." /></label>
+              <label class="full">
+                <span>🔗 Website / Link ${safeHref ? `<a href="${this.esc(safeHref)}" target="_blank" style="margin-left:8px;color:var(--primary);font-weight:700">Open Website ↗</a>` : ''}</span>
+                <input id="dr_links" value="${this.esc(lead.links || '')}" placeholder="https://..." />
+              </label>
               <label><span>Company Name</span><input id="dr_company" value="${this.esc(lead.company || '')}" /></label>
               <label><span>Contact Person</span><input id="dr_name" value="${this.esc(lead.name || '')}" /></label>
               <label><span>Contact No</span><input id="dr_phone" value="${this.esc(lead.phone || '')}" /></label>
@@ -1110,11 +1256,6 @@ const UI = {
                 </select>
               </label>
               <label><span>Follow-up Date</span><input id="dr_fdate" type="date" value="${this.esc((lead.followup_date || '').slice(0, 10))}" /></label>
-              <label class="full"><span>Full Address / Location</span><input id="dr_addr" value="${this.esc(lead.address || '')}" placeholder="Full factory / office address..." /></label>
-              <label class="full">
-                <span>Website / Link ${safeHref ? `<a href="${this.esc(safeHref)}" target="_blank" style="margin-left:8px;color:var(--primary);font-weight:700">🔗 Open Link ↗</a>` : ''}</span>
-                <input id="dr_links" value="${this.esc(lead.links || '')}" placeholder="https://..." />
-              </label>
             </div>
           </div>
 
@@ -1131,27 +1272,6 @@ const UI = {
               </div>
             </div>
           ` : ''}
-
-          <div class="card card-pad" style="margin-bottom:13px">
-            <h4 style="margin-bottom:7px">💬 Add New Note / Call Discussion</h4>
-            <textarea id="dr_new_note" placeholder="Write what was discussed with the client today..."></textarea>
-            <div style="display:flex;justify-content:flex-end;margin-top:7px">
-              <button class="btn btn-primary btn-sm" onclick="UI.addNoteInDrawer('${lead.id}')">+ Add Note</button>
-            </div>
-          </div>
-
-          <h4 style="margin-bottom:8px">📜 Complete Notes History (${history.length})</h4>
-          <div>
-            ${history.map(n => `
-              <div class="note-card">
-                <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-                  <span class="stage-badge ${this.getStageBadgeClass(n.stage, n.interest)}" style="font-size:10px;padding:1px 7px">${this.esc(n.stage || 'Note')} • ${this.esc(n.author || 'Team')}</span>
-                  <small class="muted">${new Date(n.at).toLocaleString()}</small>
-                </div>
-                <p style="font-size:12.8px;white-space:pre-wrap">${this.esc(n.text)}</p>
-              </div>
-            `).join('') || `<div class="note-card"><p>${this.esc(lead.talk_summary || lead.notes || 'No conversation notes recorded yet.')}</p></div>`}
-          </div>
         </div>
 
         <div class="drawer-foot">
@@ -1163,7 +1283,7 @@ const UI = {
               </select>
             </div>
             <div>
-              <small class="muted" style="display:block;font-size:10px;font-weight:700">STATUS COLOR</small>
+              <small class="muted" style="display:block;font-size:10px;font-weight:700">INTEREST STATUS</small>
               <select class="compact-select ${intCls}" onchange="UI.updateDrawerStageOrInterest('${lead.id}', { interest_level: this.value })">
                 ${INTEREST_OPTIONS.map(o => `<option value="${o.val}" ${(lead.interest_level || 'Mid / Follow-up') === o.val ? 'selected' : ''}>${o.label}</option>`).join('')}
               </select>
@@ -1270,35 +1390,52 @@ const UI = {
     await this.quickUpdateLead(id, { stage: newStage });
   },
 
-  /* ==================== 4. COMPACT SPLIT CALENDAR & FOLLOW-UPS VIEW ==================== */
+  /* ==================== 4. CLEAN CALENDAR & AUTO-MANAGED FOLLOW-UPS VIEW ==================== */
   async renderCalendar() {
-    const data = await API.req('/api/calendar');
-    const leadFollowups = data.leadFollowups || [];
-    const customEvents = data.events || [];
+    let leadFollowups = [];
+    let customEvents = [];
+
+    try {
+      const data = await API.req('/api/calendar');
+      leadFollowups = data.leadFollowups || [];
+      customEvents = data.events || [];
+    } catch (e) {
+      leadFollowups = this.workspace?.followups || [];
+    }
+
     const todayStr = new Date().toISOString().slice(0, 10);
+    const upcomingFollowups = leadFollowups.filter(f => (f.followup_date || '').slice(0, 10) >= todayStr);
+    const pastOverdueFollowups = leadFollowups.filter(f => (f.followup_date || '').slice(0, 10) < todayStr);
 
     const root = document.getElementById('viewRoot');
     root.innerHTML = `
       <div class="grid g-cal">
         <div class="card card-pad">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <h3>📅 Follow-up Calendar</h3>
-            <button class="btn btn-primary btn-sm" onclick="UI.promptCalendarEvent()">+ Add Reminder</button>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div>
+              <h3>📅 Clean Follow-up Calendar</h3>
+              <p class="muted sm">Completed/Closed past follow-ups are automatically cleaned up.</p>
+            </div>
+            <div style="display:flex;gap:6px">
+              ${pastOverdueFollowups.length > 0 ? `
+                <button class="btn btn-sm" onclick="UI.cleanupPastFollowups()" title="Clear all past expired follow-up dates">🧹 Auto-Clean Past Dates (${pastOverdueFollowups.length})</button>
+              ` : ''}
+              <button class="btn btn-primary btn-sm" onclick="UI.promptCalendarEvent()">+ Add Reminder</button>
+            </div>
           </div>
-          <div id="fcBox"></div>
+          <div id="fcBox" style="min-height:410px"></div>
         </div>
 
         <div class="card">
           <div class="card-head">
-            <h3>⏰ Scheduled Follow-ups (${leadFollowups.length})</h3>
+            <h3>⏰ Today &amp; Upcoming Follow-ups (${upcomingFollowups.length})</h3>
           </div>
           <div class="card-pad" style="max-height:460px;overflow-y:auto">
-            ${leadFollowups.map(f => {
+            ${upcomingFollowups.map(f => {
               const dStr = (f.followup_date || '').slice(0, 10);
               const isToday = dStr === todayStr;
-              const isOverdue = dStr < todayStr;
-              const badgeCls = isOverdue ? 'stage-red' : isToday ? 'stage-green' : 'stage-yellow';
-              const badgeText = isOverdue ? `Overdue (${dStr})` : isToday ? `Today (${dStr})` : dStr;
+              const badgeCls = isToday ? 'stage-green' : 'stage-blue';
+              const badgeText = isToday ? `🔥 Today (${dStr})` : `📅 ${dStr}`;
               return `
                 <div style="padding:9px 10px;border:1px solid var(--border);border-radius:9px;margin-bottom:8px;cursor:pointer;background:${isToday ? '#f0fdf4' : '#fff'}" onclick="UI.openLeadDrawer('${f.id}')">
                   <div style="display:flex;justify-content:space-between;align-items:center">
@@ -1309,7 +1446,28 @@ const UI = {
                   ${f.talk_summary ? `<div style="font-size:11.5px;color:var(--text-2);margin-top:4px">📝 ${this.esc(f.talk_summary)}</div>` : ''}
                 </div>
               `;
-            }).join('') || '<p class="muted sm" style="text-align:center;padding:24px">No follow-ups scheduled yet. Choose a Follow-up Date on any lead in the Leads table!</p>'}
+            }).join('') || '<p class="muted sm" style="text-align:center;padding:20px">No upcoming follow-ups scheduled. Choose a Follow-up Date on any lead in the Leads table!</p>'}
+
+            ${pastOverdueFollowups.length > 0 ? `
+              <div style="margin-top:14px;padding-top:10px;border-top:1px dashed var(--border)">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                  <small class="muted" style="font-weight:700">⚠️ PAST / OVERDUE FOLLOW-UPS (${pastOverdueFollowups.length})</small>
+                  <button class="btn btn-sm" style="padding:2px 8px;font-size:10.5px" onclick="UI.cleanupPastFollowups()">Clear All Past</button>
+                </div>
+                ${pastOverdueFollowups.map(f => {
+                  const dStr = (f.followup_date || '').slice(0, 10);
+                  return `
+                    <div style="padding:7px 9px;border:1px solid #fecaca;border-radius:8px;margin-bottom:6px;background:#fff5f5;cursor:pointer" onclick="UI.openLeadDrawer('${f.id}')">
+                      <div style="display:flex;justify-content:space-between;align-items:center">
+                        <b>${this.esc(f.company || f.name)}</b>
+                        <span class="stage-badge stage-red" style="font-size:10px">Passed: ${dStr}</span>
+                      </div>
+                      <div class="muted sm">📞 ${this.esc(f.phone || '—')}</div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -1323,7 +1481,7 @@ const UI = {
         backgroundColor: (f.followup_date || '').slice(0, 10) < todayStr ? '#dc2626' : (f.followup_date || '').slice(0, 10) === todayStr ? '#0d9488' : '#4f46e5',
         extendedProps: { leadId: f.id }
       })),
-      ...customEvents.filter(e => !e.lead_id).map(e => ({
+      ...customEvents.filter(e => !e.lead_id && (e.start_at || '').slice(0, 10) >= todayStr).map(e => ({
         id: e.id,
         title: e.title,
         start: e.start_at,
@@ -1331,18 +1489,37 @@ const UI = {
       }))
     ];
 
-    const cal = new FullCalendar.Calendar(document.getElementById('fcBox'), {
-      initialView: 'dayGridMonth',
-      height: 430,
-      headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listWeek' },
-      dateClick: (info) => this.promptCalendarEvent(info.dateStr),
-      eventClick: (info) => {
-        const leadId = info.event.extendedProps?.leadId;
-        if (leadId) this.openLeadDrawer(leadId);
-      },
-      events: combinedEvents
-    });
-    cal.render();
+    const fcEl = document.getElementById('fcBox');
+    if (typeof FullCalendar !== 'undefined' && fcEl) {
+      const cal = new FullCalendar.Calendar(fcEl, {
+        initialView: 'dayGridMonth',
+        height: 430,
+        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listWeek' },
+        dateClick: (info) => this.promptCalendarEvent(info.dateStr),
+        eventClick: (info) => {
+          const leadId = info.event.extendedProps?.leadId;
+          if (leadId) this.openLeadDrawer(leadId);
+        },
+        events: combinedEvents
+      });
+      cal.render();
+    } else if (fcEl) {
+      fcEl.innerHTML = `<div style="padding:20px;border:1px solid var(--border);border-radius:10px;background:var(--panel-2)">
+        <b>📅 Scheduled Dates Summary</b>
+        <p class="muted sm" style="margin-top:4px">Click any follow-up on the right panel to open its Notepad Drawer.</p>
+      </div>`;
+    }
+  },
+
+  async cleanupPastFollowups() {
+    try {
+      await API.req('/api/calendar/cleanup-past', { method: 'POST' });
+      this.flashSaved('✓ Past Follow-ups Cleaned');
+      await this.refreshWorkspace();
+      this.renderCalendar();
+    } catch (e) {
+      alert(e.message);
+    }
   },
 
   async promptCalendarEvent(dateStr = new Date().toISOString().slice(0, 10)) {
@@ -1350,14 +1527,25 @@ const UI = {
     if (!title) return;
     const start_at = prompt('Date (YYYY-MM-DD):', dateStr);
     if (!start_at) return;
-    await API.req('/api/calendar', { method: 'POST', body: JSON.stringify({ title, start_at }) });
-    await this.refreshWorkspace();
-    this.renderCalendar();
+    try {
+      await API.req('/api/calendar', { method: 'POST', body: JSON.stringify({ title, start_at }) });
+      await this.refreshWorkspace();
+      this.renderCalendar();
+    } catch (e) {
+      alert(e.message);
+    }
   },
 
   /* ==================== 5. MESSAGES VIEW ==================== */
   async renderMessages() {
-    const data = await API.req('/api/messages');
+    let messagesList = [];
+    try {
+      const data = await API.req('/api/messages');
+      messagesList = data.messages || [];
+    } catch (e) {
+      messagesList = [];
+    }
+
     const leadsList = (this.workspace?.stats?.recentLeads || []);
     const root = document.getElementById('viewRoot');
 
@@ -1376,20 +1564,20 @@ const UI = {
           <label class="field"><span>Mobile No or Email *</span><input id="m_to" placeholder="9876543210 or email@company.com" /></label>
           <label class="field"><span>Channel</span>
             <select id="m_chan">
-              <option value="WhatsApp">💬 WhatsApp Direct</option>
+              <option value="WhatsApp">💬 WhatsApp Direct (wa.me)</option>
               <option value="Email">✉️ Email (Gmail / Default Client)</option>
             </select>
           </label>
           <label class="field"><span>Message *</span>
-            <textarea id="m_body">Hello, greetings from ${this.esc(this.workspace?.tenant?.company_name || 'our team')}! Following up regarding our discussion. Please let us know a convenient time to connect.</textarea>
+            <textarea id="m_body">Hello, greetings from ${this.esc(this.workspace?.tenant?.company_name || 'Gantavya CRM')}! Following up regarding our discussion. Please let us know a convenient time to connect.</textarea>
           </label>
           <button class="btn btn-primary" style="margin-top:12px" onclick="UI.sendMessage()">🚀 Send &amp; Log Message</button>
         </div>
 
         <div class="card">
-          <div class="card-head"><h3>Sent Messages Log (${(data.messages || []).length})</h3></div>
+          <div class="card-head"><h3>Sent Messages Log (${messagesList.length})</h3></div>
           <div class="card-pad" style="max-height:420px;overflow-y:auto">
-            ${(data.messages || []).map(m => `
+            ${messagesList.map(m => `
               <div style="padding:9px 0;border-bottom:1px solid var(--border)">
                 <div style="display:flex;justify-content:space-between">
                   <b>[${this.esc(m.channel)}] ${this.esc(m.lead_name || m.recipient)} (${this.esc(m.recipient)})</b>
@@ -1397,7 +1585,7 @@ const UI = {
                 </div>
                 <p class="muted sm" style="margin-top:3px">${this.esc(m.body)}</p>
               </div>
-            `).join('') || '<p class="muted sm">No messages sent yet.</p>'}
+            `).join('') || '<p class="muted sm">No messages sent yet. Select a lead on the left and click Send!</p>'}
           </div>
         </div>
       </div>
@@ -1418,16 +1606,20 @@ const UI = {
     const body = document.getElementById('m_body').value.trim();
     if (!recipient || !body) return alert('Enter recipient mobile/email and message');
 
-    const res = await API.req('/api/messages', {
-      method: 'POST',
-      body: JSON.stringify({ lead_name, recipient, channel, body })
-    });
+    let emailSentViaSmtp = false;
+    try {
+      const res = await API.req('/api/messages', {
+        method: 'POST',
+        body: JSON.stringify({ lead_name, recipient, channel, body })
+      });
+      emailSentViaSmtp = Boolean(res.emailSentViaSmtp);
+    } catch (e) {}
 
     if (channel === 'WhatsApp') {
       let digits = recipient.replace(/\D/g, '');
       if (digits.length === 10) digits = '91' + digits;
       window.open(`https://wa.me/${digits}?text=${encodeURIComponent(body)}`, '_blank');
-    } else if (!res.emailSentViaSmtp) {
+    } else if (!emailSentViaSmtp) {
       window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${encodeURIComponent('Follow-up: ' + (lead_name || 'Discussion'))}&body=${encodeURIComponent(body)}`, '_blank');
     } else {
       alert('Email sent directly via SMTP!');
@@ -1435,39 +1627,79 @@ const UI = {
     this.renderMessages();
   },
 
-  /* ==================== 6. REPORTS VIEW ==================== */
+  /* ==================== 6. REPORTS VIEW (ADVANCED ANALYTICS) ==================== */
   async renderReports() {
     await this.refreshWorkspace();
-    const { stats } = this.workspace;
+    const { stats, teamList } = this.workspace;
+    const allLeadsData = await API.req('/api/leads?page=1&limit=2000');
+    const allLeads = allLeadsData.leads || [];
+
     const root = document.getElementById('viewRoot');
     root.innerHTML = `
       <div class="grid g-2">
         <div class="card">
-          <div class="card-head"><h3>Leads by Stage</h3></div>
-          <div class="card-pad" style="height:260px"><canvas id="repStageChart"></canvas></div>
+          <div class="card-head"><h3>📈 Leads Count by Stage</h3></div>
+          <div class="card-pad" style="height:280px"><canvas id="repStageCountChart"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-head"><h3>Leads by Source</h3></div>
-          <div class="card-pad" style="height:260px"><canvas id="repSourceChart"></canvas></div>
+          <div class="card-head"><h3>💰 Total Deal Value (₹) by Stage</h3></div>
+          <div class="card-pad" style="height:280px"><canvas id="repStageValueChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>👥 Team Members - Leads Handled</h3></div>
+          <div class="card-pad" style="height:280px"><canvas id="repTeamLeadsChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>🏆 Team Members - Revenue Won (₹)</h3></div>
+          <div class="card-pad" style="height:280px"><canvas id="repTeamRevenueChart"></canvas></div>
         </div>
       </div>
     `;
+
     setTimeout(() => {
-      const sb = stats.stageBreakdown || [];
-      new Chart(document.getElementById('repStageChart'), {
+      if (typeof Chart === 'undefined') return;
+
+      // 1. Leads by Stage Count
+      const stageCounts = STAGES.map(s => allLeads.filter(l => l.stage === s).length);
+      new Chart(document.getElementById('repStageCountChart'), {
         type: 'bar',
         data: {
           labels: STAGES,
-          datasets: [{ label: 'Leads', data: STAGES.map(s => (sb.find(x => x.stage === s) || {}).count || 0), backgroundColor: '#4f46e5', borderRadius: 8 }]
+          datasets: [{ label: 'Leads Count', data: stageCounts, backgroundColor: '#4f46e5', borderRadius: 6 }]
         },
         options: { responsive: true, maintainAspectRatio: false }
       });
-      const src = stats.sourceBreakdown || [];
-      new Chart(document.getElementById('repSourceChart'), {
+
+      // 2. Deal Value by Stage
+      const stageValues = STAGES.map(s => allLeads.filter(l => l.stage === s).reduce((acc, l) => acc + Number(l.deal_value || 0), 0));
+      new Chart(document.getElementById('repStageValueChart'), {
+        type: 'bar',
+        data: {
+          labels: STAGES,
+          datasets: [{ label: 'Deal Value (₹)', data: stageValues, backgroundColor: '#0d9488', borderRadius: 6 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // 3. Team Member Leads Handled
+      const teamNames = (teamList || []).map(t => t.full_name);
+      const teamLeadCounts = teamNames.map(name => allLeads.filter(l => String(l.owner_name || '').toLowerCase().trim() === name.toLowerCase().trim()).length);
+      new Chart(document.getElementById('repTeamLeadsChart'), {
         type: 'doughnut',
         data: {
-          labels: src.map(x => x.source || 'Direct'),
-          datasets: [{ data: src.map(x => x.count), backgroundColor: ['#4f46e5', '#0d9488', '#d97706', '#0284c7', '#7c3aed'] }]
+          labels: teamNames.length ? teamNames : ['Unassigned'],
+          datasets: [{ data: teamLeadCounts.length ? teamLeadCounts : [allLeads.length], backgroundColor: ['#4f46e5', '#0284c7', '#0d9488', '#d97706', '#7c3aed', '#db2777'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      // 4. Team Member Revenue Won
+      const teamRevenue = teamNames.map(name => allLeads.filter(l => String(l.owner_name || '').toLowerCase().trim() === name.toLowerCase().trim() && l.stage === 'Won').reduce((acc, l) => acc + Number(l.deal_value || 0), 0));
+      new Chart(document.getElementById('repTeamRevenueChart'), {
+        type: 'bar',
+        data: {
+          labels: teamNames.length ? teamNames : ['Team'],
+          datasets: [{ label: 'Revenue Won (₹)', data: teamRevenue.length ? teamRevenue : [0], backgroundColor: '#d97706', borderRadius: 6 }]
         },
         options: { responsive: true, maintainAspectRatio: false }
       });
@@ -1559,8 +1791,8 @@ const UI = {
     const pass = m.login_password_hint || 'team123';
     const magicLink = `${baseUrl}/?invite_u=${encodeURIComponent(loginId)}&invite_p=${encodeURIComponent(pass)}`;
 
-    const subject = `Invitation to join ${this.workspace?.tenant?.company_name || 'NovaCRM'} Workspace`;
-    const bodyText = `Hello ${m.full_name},\n\nYou have been invited to access the ${this.workspace?.tenant?.company_name || 'NovaCRM'} CRM & HRMS Workspace.\n\n🚀 1-Click Direct Auto-Login Link:\n${magicLink}\n\nOr sign in manually at: ${baseUrl}\n👤 Login User ID: ${loginId}\n🔑 Password: ${pass}\n\nWelcome to the team!`;
+    const subject = `Invitation to join ${this.workspace?.tenant?.company_name || 'Gantavya CRM'} Workspace`;
+    const bodyText = `Hello ${m.full_name},\n\nYou have been invited to access the ${this.workspace?.tenant?.company_name || 'Gantavya CRM'} CRM & HRMS Workspace.\n\n🚀 1-Click Direct Auto-Login Link:\n${magicLink}\n\nOr sign in manually at: ${baseUrl}\n👤 Login User ID: ${loginId}\n🔑 Password: ${pass}\n\nWelcome to the team!`;
 
     const root = document.getElementById('modalRoot');
     root.className = 'modal-root open';
@@ -1612,16 +1844,18 @@ const UI = {
     const to = document.getElementById('inv_email').value.trim();
     const body = document.getElementById('inv_body').value;
     if (!to) return alert('Please enter the team member email address first.');
-    const res = await API.req('/api/messages', {
-      method: 'POST',
-      body: JSON.stringify({ lead_name: 'Team Invite', recipient: to, channel: 'Email', subject, body })
-    });
-    if (res.emailSentViaSmtp) {
-      alert(`Invite email sent directly to ${to}!`);
-      this.closeModal();
-    } else {
-      window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
-    }
+    try {
+      const res = await API.req('/api/messages', {
+        method: 'POST',
+        body: JSON.stringify({ lead_name: 'Team Invite', recipient: to, channel: 'Email', subject, body })
+      });
+      if (res.emailSentViaSmtp) {
+        alert(`Invite email sent directly to ${to}!`);
+        this.closeModal();
+        return;
+      }
+    } catch (e) {}
+    window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
   },
 
   sendInviteViaWhatsApp() {
@@ -1644,7 +1878,7 @@ const UI = {
     root.innerHTML = `
       <form class="modal" onsubmit="UI.saveShareSettings(event)">
         <div class="modal-head">
-          <h3>🌐 How to Share Your CRM &amp; Invite Team Members</h3>
+          <h3>🌐 How to Share Your Gantavya CRM &amp; Invite Team Members</h3>
           <button type="button" class="btn btn-sm" onclick="UI.closeModal()">✕</button>
         </div>
         <div class="modal-body">
@@ -1659,8 +1893,8 @@ const UI = {
 
           <div style="background:#f0fdf4;padding:12px;border-radius:10px;border:1px solid #bbf7d0;margin-bottom:14px">
             <b style="color:#15803d">2. Share Anywhere on the Internet (Different Cities / Remote Team):</b>
-            <p class="muted sm" style="margin:4px 0 8px">Paste your Render URL (e.g. <code>https://novacrm-saas.onrender.com</code>) below so all Team Invite emails use it automatically:</p>
-            <input id="sh_public_url" value="${this.esc(savedPublicUrl)}" placeholder="https://novacrm-saas.onrender.com" />
+            <p class="muted sm" style="margin:4px 0 8px">Paste your cloud URL below so all Team Invite emails use it automatically:</p>
+            <input id="sh_public_url" value="${this.esc(savedPublicUrl)}" placeholder="https://your-gantavya-crm.onrender.com" />
           </div>
 
           <div style="background:var(--panel-2);padding:12px;border-radius:10px;border:1px solid var(--border)">
@@ -1769,7 +2003,7 @@ const UI = {
             <h4 style="margin-bottom:8px">🏢 Previous Companies History (${(m.previous_companies || []).length})</h4>
             ${(m.previous_companies || []).map(p => `
               <div style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
-                <b>${this.esc(p.company)}</b> —${this.esc(p.role)}
+                <b>${this.esc(p.company)}</b> — ${this.esc(p.role)}
                 <div class="muted sm">Tenure: ${this.esc(p.duration)} • Last CTC: ${this.esc(p.ctc)}</div>
               </div>
             `).join('') || '<p class="muted sm">No previous companies listed. Click "Edit HRMS & Login" below to add past companies.</p>'}
@@ -1934,7 +2168,7 @@ const UI = {
         </div>
 
         <div class="card card-pad">
-          <h3>🌐 CRM Sharing &amp; Team Invite Configuration</h3>
+          <h3>🌐 Gantavya CRM Sharing &amp; Team Invite Configuration</h3>
           <p class="muted sm" style="margin:6px 0 14px">Configure your LAN / Public Internet URL and Gmail SMTP so invited team members can log in from anywhere.</p>
           <button class="btn btn-primary" onclick="UI.openShareCrmModal()">🌐 Share CRM &amp; Invite Settings</button>
         </div>
@@ -1942,7 +2176,7 @@ const UI = {
     `;
   },
 
-  /* ==================== NEW LEAD & MULTI-SHEET IMPORT MODAL ==================== */
+  /* ==================== NEW LEAD & ADVANCED MULTI-SHEET IMPORT WIZARD ==================== */
   openLeadModal() {
     const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
     if (!teamOpts.includes(this.workspace?.user?.name)) teamOpts.unshift(this.workspace?.user?.name || 'Admin');
@@ -1973,12 +2207,12 @@ const UI = {
           </label>
           <label><span>Follow-up Date</span><input id="nl_fdate" type="date" /></label>
           <label class="full"><span>Notes</span><input id="nl_talk" placeholder="Discussion summary / requirements..." /></label>
-          <label><span>Full Address (Shown inside details)</span><input id="nl_addr" placeholder="Industrial Area, Noida" /></label>
-          <label><span>Website / Link (Shown inside details)</span><input id="nl_links" placeholder="https://..." /></label>
+          <label><span>Full Address (Shown inside Notepad Drawer)</span><input id="nl_addr" placeholder="Industrial Area, Noida" /></label>
+          <label><span>Website / Link (Shown inside Notepad Drawer)</span><input id="nl_links" placeholder="https://..." /></label>
         </div>
         <div class="modal-foot">
           <button type="button" class="btn" onclick="UI.closeModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Lead</button>
+          <button type="submit" class="btn btn-primary">Save Lead (Adds to Top)</button>
         </div>
       </form>
     `;
@@ -2003,8 +2237,9 @@ const UI = {
       })
     });
     this.closeModal();
-    this.flashSaved('✓ New Lead Saved');
+    this.flashSaved('✓ New Lead Saved at Top');
     await this.refreshWorkspace();
+    this.leadFilter.page = 1;
     this.navigate('leads');
   },
 
@@ -2018,8 +2253,8 @@ const UI = {
       <div class="modal wide">
         <div class="modal-head">
           <div>
-            <h3>📥 Import Leads (Excel .xlsx, CSV, Google Sheets, HubSpot)</h3>
-            <p class="muted sm">Supports Multi-Sheet Selection (Choose a specific sheet or Import All Sheets) &amp; preserves exact top-to-bottom row order!</p>
+            <h3>📥 Advanced Import Wizard (Excel .xlsx/.xls, CSV &amp; Google Sheets)</h3>
+            <p class="muted sm">Supports Multi-Sheet Selection (Pick any sheet or "Import All Sheets"), Live Table Preview &amp; places imported leads at the TOP of your list!</p>
           </div>
           <button class="btn btn-sm" onclick="UI.closeModal()">✕</button>
         </div>
@@ -2046,22 +2281,22 @@ const UI = {
 
           <div id="sheetPickerBar" class="sheet-picker-bar hidden">
             <div>
-              <b style="color:var(--primary-600)">📑 Multiple Sheets Detected in File!</b>
-              <span class="muted sm" style="margin-left:6px">Choose which sheet/tab you want to import, or select "Import All Sheets":</span>
+              <b style="color:var(--primary-600)">📑 Sheet / Tab Selection:</b>
+              <span class="muted sm" style="margin-left:6px">Choose which sheet you want to import, or select "Import All Sheets":</span>
             </div>
-            <select id="sheetSelectorDropdown" style="width:auto;min-width:260px;font-weight:700" onchange="UI.onSelectWorkbookSheet(this.value)"></select>
+            <select id="sheetSelectorDropdown" style="width:auto;min-width:280px;font-weight:700" onchange="UI.onSelectWorkbookSheet(this.value)"></select>
           </div>
 
           <div id="analyzerWorkspace" class="hidden">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <h4>Auto/Manual Column Classification (All other columns are automatically saved inside each lead!)</h4>
+              <h4>Auto/Manual Column Classification (All extra columns are saved inside the Notepad Drawer!)</h4>
               <span class="stage-badge stage-blue" id="analyzedBadge">0 rows</span>
             </div>
             <div id="columnMapGrid" class="map-grid"></div>
 
             <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
-              <h4>Live Preview (Showing in Exact Top-to-Bottom Sheet Order — Row 1 First)</h4>
-              <button class="btn btn-success" id="btnCommitImport" onclick="UI.commitMappedImport()">✅ Confirm &amp; Import Leads</button>
+              <h4>📊 Live Table Preview (Imported Leads Will Appear at the Very TOP of Your List)</h4>
+              <button class="btn btn-success" id="btnCommitImport" onclick="UI.commitMappedImport()">✅ Confirm &amp; Import Leads to Top</button>
             </div>
             <div class="table-wrap" style="max-height:240px;border:1px solid var(--border);border-radius:10px">
               <table class="tbl" id="livePreviewTable"></table>
@@ -2101,54 +2336,64 @@ const UI = {
     return mapping;
   },
 
-  setupWorkbookInWizard(workbook, sourceLabel) {
-    this.currentWorkbook = workbook;
-    const sheetNames = workbook.SheetNames || [];
-    if (!sheetNames.length) return alert('No sheets found in file.');
-
+  setupSheetsMatrixInWizard(sheetNames, sheetsData, sourceLabel) {
+    if (!sheetNames || !sheetNames.length) return alert('No sheets found in file.');
     this.importState.source = sourceLabel;
     this.importState.sheetNames = sheetNames;
+    this.importState.sheetsData = sheetsData;
 
     const pickerBar = document.getElementById('sheetPickerBar');
     const dropdown = document.getElementById('sheetSelectorDropdown');
 
+    pickerBar.classList.remove('hidden');
     if (sheetNames.length > 1) {
-      pickerBar.classList.remove('hidden');
       dropdown.innerHTML = `
         <option value="__ALL__">📚 Import All Sheets (${sheetNames.length} Sheets Combined)</option>
-        ${sheetNames.map((s, idx) => `<option value="${this.esc(s)}">📄 Sheet ${idx + 1}:${this.esc(s)}</option>`).join('')}
+        ${sheetNames.map((s, idx) => `<option value="${this.esc(s)}">📄 Sheet ${idx + 1}: ${this.esc(s)}</option>`).join('')}
       `;
       dropdown.value = sheetNames[0];
       this.onSelectWorkbookSheet(sheetNames[0]);
     } else {
-      pickerBar.classList.add('hidden');
+      dropdown.innerHTML = `
+        <option value="${this.esc(sheetNames[0])}">📄 Sheet 1: ${this.esc(sheetNames[0])}</option>
+        <option value="__ALL__">📚 Import All Sheets</option>
+      `;
+      dropdown.value = sheetNames[0];
       this.onSelectWorkbookSheet(sheetNames[0]);
     }
   },
 
+  setupWorkbookInWizard(workbook, sourceLabel) {
+    this.currentWorkbook = workbook;
+    const sheetNames = workbook.SheetNames || [];
+    const sheetsData = {};
+    sheetNames.forEach(sName => {
+      sheetsData[sName] = XLSX.utils.sheet_to_json(workbook.Sheets[sName], { header: 1, defval: '' });
+    });
+    this.setupSheetsMatrixInWizard(sheetNames, sheetsData, sourceLabel);
+  },
+
   onSelectWorkbookSheet(sheetSelection) {
-    const workbook = this.currentWorkbook;
-    if (!workbook) return;
+    const { sheetNames, sheetsData } = this.importState;
+    if (!sheetNames || !sheetNames.length) return;
     this.importState.selectedSheet = sheetSelection;
 
-    const targetSheets = sheetSelection === '__ALL__' ? workbook.SheetNames : [sheetSelection];
+    const targetSheets = sheetSelection === '__ALL__' ? sheetNames : [sheetSelection];
     let headers = [];
     const headerSet = new Set();
     let rows = [];
 
     for (const sheetName of targetSheets) {
-      const sheet = workbook.Sheets[sheetName];
-      if (!sheet) continue;
-      const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      const matrix = sheetsData[sheetName];
       if (!matrix || matrix.length === 0) continue;
 
       let headerIdx = 0, maxCols = 0;
       for (let i = 0; i < Math.min(12, matrix.length); i++) {
-        const nonEmpty = matrix[i].filter(c => String(c).trim() !== '').length;
+        const nonEmpty = (matrix[i] || []).filter(c => String(c ?? '').trim() !== '').length;
         if (nonEmpty > maxCols) { maxCols = nonEmpty; headerIdx = i; }
       }
 
-      const rawHeaders = matrix[headerIdx].map((h, i) => String(h).trim() || `Column_${i + 1}`);
+      const rawHeaders = (matrix[headerIdx] || []).map((h, i) => String(h ?? '').trim() || `Column_${i + 1}`);
       rawHeaders.forEach(h => {
         if (!headerSet.has(h)) {
           headerSet.add(h);
@@ -2158,7 +2403,7 @@ const UI = {
 
       for (let r = headerIdx + 1; r < matrix.length; r++) {
         const arr = matrix[r];
-        if (!arr || arr.every(c => String(c).trim() === '')) continue;
+        if (!arr || arr.every(c => String(c ?? '').trim() === '')) continue;
         const obj = { _SheetName: sheetName };
         rawHeaders.forEach((h, idx) => { obj[h] = String(arr[idx] ?? '').trim(); });
         rows.push(obj);
@@ -2170,15 +2415,50 @@ const UI = {
     this.loadAnalyzedSheetIntoWizard(this.importState.source, headers, rows, autoMapping);
   },
 
-  analyzeFileInBrowser() {
+  async analyzeFileInBrowser() {
     const file = document.getElementById('impFile').files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-      this.setupWorkbookInWizard(wb, file.name.toLowerCase().endsWith('.csv') ? 'CSV' : 'Excel');
-    };
-    reader.readAsArrayBuffer(file);
+    const isCsv = file.name.toLowerCase().endsWith('.csv');
+
+    if (typeof XLSX !== 'undefined') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          this.setupWorkbookInWizard(wb, isCsv ? 'CSV' : 'Excel');
+        } catch (err) {
+          this.uploadFileToServerForParsing(file);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      return;
+    }
+
+    if (isCsv) {
+      const text = await file.text();
+      const matrix = parseCsvMatrixFallback(text);
+      this.setupSheetsMatrixInWizard(['Sheet1'], { Sheet1: matrix }, 'CSV');
+      return;
+    }
+
+    await this.uploadFileToServerForParsing(file);
+  },
+
+  async uploadFileToServerForParsing(file) {
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/leads/parse-file', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${API.token}` },
+        body: fd
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to parse file');
+      this.setupSheetsMatrixInWizard(data.sheetNames, data.sheetsData, 'Excel');
+    } catch (e) {
+      alert('File Import Error: ' + e.message);
+    }
   },
 
   async analyzeGoogleSheet() {
@@ -2186,25 +2466,54 @@ const UI = {
     if (!url) return alert('Paste your Google Sheet link first');
     const idMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
     if (!idMatch || !idMatch[1]) return alert('Invalid Google Sheet URL.');
+    const sheetId = idMatch[1];
+    const gidMatch = url.match(/[#&?]gid=([0-9]+)/);
+    const gid = gidMatch ? gidMatch[1] : '0';
 
     const btn = document.getElementById('btnAnalyzeGS');
     btn.disabled = true;
     btn.textContent = 'Analyzing...';
 
     try {
-      const data = await API.req('/api/leads/fetch-google-sheet', { method: 'POST', body: JSON.stringify({ url }) });
-      if (data.base64Xlsx) {
-        const binaryStr = atob(data.base64Xlsx);
-        const bytes = new Uint8Array(binaryStr.length);
-        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-        const wb = XLSX.read(bytes, { type: 'array' });
-        this.setupWorkbookInWizard(wb, 'Google Sheets');
-      } else if (data.csvText) {
-        const wb = XLSX.read(data.csvText, { type: 'string' });
-        this.setupWorkbookInWizard(wb, 'Google Sheets');
+      try {
+        const data = await API.req('/api/leads/fetch-google-sheet', { method: 'POST', body: JSON.stringify({ url }) });
+        if (data.sheetNames && data.sheetsData) {
+          this.setupSheetsMatrixInWizard(data.sheetNames, data.sheetsData, 'Google Sheets');
+          return;
+        }
+        if (data.base64Xlsx && typeof XLSX !== 'undefined') {
+          const binaryStr = atob(data.base64Xlsx);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+          const wb = XLSX.read(bytes, { type: 'array' });
+          this.setupWorkbookInWizard(wb, 'Google Sheets');
+          return;
+        }
+        if (data.csvText) {
+          const matrix = parseCsvMatrixFallback(data.csvText);
+          this.setupSheetsMatrixInWizard(['Google Sheet'], { 'Google Sheet': matrix }, 'Google Sheets');
+          return;
+        }
+      } catch (serverErr) {
+        const directCsvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
+        const directRes = await fetch(directCsvUrl);
+        if (directRes.ok) {
+          const csvText = await directRes.text();
+          if (csvText && !csvText.trim().startsWith('<!DOCTYPE html>')) {
+            if (typeof XLSX !== 'undefined') {
+              const wb = XLSX.read(csvText, { type: 'string' });
+              this.setupWorkbookInWizard(wb, 'Google Sheets');
+            } else {
+              const matrix = parseCsvMatrixFallback(csvText);
+              this.setupSheetsMatrixInWizard(['Google Sheet'], { 'Google Sheet': matrix }, 'Google Sheets');
+            }
+            return;
+          }
+        }
+        throw serverErr;
       }
     } catch (e) {
-      alert(e.message);
+      alert('Google Sheet Import Note: Make sure your Google Sheet Share access is set to "Anyone with the link", and restart server.js.\n\nDetails: ' + e.message);
     } finally {
       btn.disabled = false;
       btn.textContent = 'Analyze';
@@ -2270,13 +2579,14 @@ const UI = {
 
   renderLiveMappedPreview() {
     const mapped = this.buildMappedLeadObjects();
-    document.getElementById('btnCommitImport').textContent = `✅ Confirm & Import ${mapped.length.toLocaleString()} Leads`;
+    document.getElementById('btnCommitImport').textContent = `✅ Confirm & Import ${mapped.length.toLocaleString()} Leads to Top`;
     document.getElementById('livePreviewTable').innerHTML = `
-      <thead><tr><th>Sheet Row #</th><th>Company Name</th><th>Contact No</th><th>Stage</th><th>Notes</th><th>Address (Inside)</th><th>Link (Inside)</th></tr></thead>
+      <thead><tr><th>Sheet Row #</th><th>Sheet Tab</th><th>Company Name</th><th>Contact No</th><th>Stage</th><th>Notes</th><th>Address (Inside)</th><th>Link (Inside)</th></tr></thead>
       <tbody>
-        ${mapped.slice(0, 25).map((l, i) => `
+        ${mapped.slice(0, 30).map((l, i) => `
           <tr>
             <td><b>#${i + 1}</b></td>
+            <td><span class="stage-badge" style="background:var(--panel-3)">${this.esc(l.extra_data?.['Sheet Name'] || 'Sheet 1')}</span></td>
             <td><b>${this.esc(l.company)}</b></td>
             <td>${this.esc(l.phone || '—')}</td>
             <td><span class="stage-badge stage-blue">${this.esc(l.stage)}</span></td>
@@ -2301,9 +2611,11 @@ const UI = {
         method: 'POST',
         body: JSON.stringify({ leads: mapped, source: this.importState.source, assignTo })
       });
-      alert(`Successfully imported ${data.importedCount.toLocaleString()} leads in exact top-to-bottom sheet order!`);
+      alert(`Successfully imported ${data.importedCount.toLocaleString()} leads to the TOP of your Leads list!`);
       this.closeModal();
       await this.refreshWorkspace();
+      this.showCompletedBatches = false;
+      this.leadFilter.page = 1;
       this.navigate('leads');
     } catch (e) {
       alert(e.message);
@@ -2348,7 +2660,7 @@ const UI = {
       <form class="modal" onsubmit="UI.completeOneYearUpgrade(event)">
         <div class="modal-head"><h3>💳 Activate 1-Year Subscription</h3><button type="button" class="btn btn-sm" onclick="UI.closeModal()">✕</button></div>
         <div class="modal-body">
-          <p style="margin-bottom:12px">Unlock 365 Days of full CRM &amp; Team HRMS access (₹24,999 / Year).</p>
+          <p style="margin-bottom:12px">Unlock 365 Days of full Gantavya CRM &amp; Team HRMS access (₹24,999 / Year).</p>
           <label class="field"><span>Payment Method</span><select id="pay_gw"><option>UPI / QR</option><option>Credit / Debit Card</option><option>NetBanking</option></select></label>
           <label class="field"><span>Transaction Ref</span><input id="pay_ref" value="TXN_${Date.now()}" required /></label>
         </div>
