@@ -49,7 +49,6 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
 .sm{font-size:11.8px}
 .mono{font-variant-numeric:tabular-nums}
 
-/* Buttons */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
   border:1px solid var(--border-2);background:#fff;color:var(--text-2);
@@ -78,7 +77,6 @@ button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit
   background:var(--danger);color:#fff;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid #fff
 }
 
-/* Login Screen */
 .login-screen{position:fixed;inset:0;display:flex;z-index:60;background:var(--bg);overflow-y:auto}
 .login-aside{
   flex:1.05;background:linear-gradient(150deg,#4f46e5 0%,#6366f1 45%,#7c3aed 100%);
@@ -100,7 +98,6 @@ textarea{resize:vertical;min-height:70px}
 .logo-mark.sm{width:32px;height:32px;border-radius:9px;font-size:15px}
 .logo-mark.lg{width:54px;height:54px;border-radius:15px;font-size:24px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3)}
 
-/* App Shell & Premium Rivo 3D Character touching 'G' */
 .app{display:flex;min-height:100vh}
 .sidebar{
   width:242px;flex:0 0 242px;background:#fff;border-right:1px solid var(--border);
@@ -157,16 +154,15 @@ textarea{resize:vertical;min-height:70px}
 .main{flex:1;min-width:0;display:flex;flex-direction:column}
 .topbar{
   position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:14px
+  border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap
 }
 .topbar-title h1{font-size:17px;line-height:1.2}
-.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.topbar-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .search-wrap{position:relative;display:flex;align-items:center}
 .search-wrap svg{position:absolute;left:10px;width:15px;height:15px;color:var(--muted-2);pointer-events:none}
-.search-wrap input{padding-left:32px;width:220px;background:var(--panel-2);border-color:var(--border)}
+.search-wrap input{padding-left:32px;width:200px;background:var(--panel-2);border-color:var(--border)}
 .content{padding:16px 20px;flex:1}
 
-/* Cards & Grid */
 .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
 .card-pad{padding:15px}
 .card-head{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
@@ -178,7 +174,6 @@ textarea{resize:vertical;min-height:70px}
 .g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .g-cal{grid-template-columns:1.6fr 1fr;align-items:start}
 
-/* KPI */
 .kpi{padding:13px 15px;display:flex;flex-direction:column;gap:5px}
 .kpi-top{display:flex;align-items:center;justify-content:space-between}
 .kpi-ico{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
@@ -186,7 +181,6 @@ textarea{resize:vertical;min-height:70px}
 .kpi-value{font-size:21px;font-weight:750;letter-spacing:-.02em;line-height:1.1}
 .kpi-foot{font-size:11.2px;color:var(--muted);display:flex;align-items:center;gap:5px}
 
-/* Sleek Compact Leads Table */
 .table-wrap{overflow-x:auto}
 table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 table.tbl th{
@@ -207,7 +201,6 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 14px;border-bottom:1px solid var(--border)}
 .toolbar select,.toolbar input{width:auto;padding:5px 9px;font-size:12px}
 
-/* Direct Call & Action Mini Buttons */
 .call-action-wrap{display:inline-flex;align-items:center;gap:5px}
 .call-btn{
   display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;
@@ -228,7 +221,6 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 }
 .del-mini-btn:hover{background:var(--danger);color:#fff}
 
-/* Compact Color-Coded Stage & Interest Controls */
 .stage-badge{
   display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;
   padding:2px 8px;border-radius:20px;white-space:nowrap;border:1px solid transparent
@@ -256,13 +248,11 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
   background:#fff;height:27px;width:120px
 }
 
-/* Sheet Tabs Selector Bar */
 .sheet-picker-bar{
   background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:10px 14px;
   margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap
 }
 
-/* Clean & Modern FullCalendar Overrides */
 .fc{font-size:11.8px !important;--fc-border-color:var(--border);--fc-today-bg-color:var(--primary-soft)}
 .fc .fc-toolbar.fc-header-toolbar{margin-bottom:10px !important}
 .fc .fc-toolbar-title{font-size:14.5px !important;font-weight:750}
@@ -272,7 +262,6 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .fc .fc-daygrid-day-number{padding:3px 5px !important;font-size:11px;font-weight:600}
 .fc-event{font-size:10.8px !important;padding:1px 4px !important;border-radius:4px !important;cursor:pointer;border:none !important}
 
-/* Notification Bell Popover */
 .notif-pop{
   position:fixed;top:56px;right:20px;width:360px;max-height:72vh;overflow-y:auto;background:#fff;
   border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:75
@@ -281,7 +270,6 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .notif-item{padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:.12s}
 .notif-item:hover{background:var(--panel-2)}
 
-/* Kanban Pipeline */
 .kanban{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 12px;align-items:flex-start}
 .kcol{flex:0 0 265px;background:var(--panel-2);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;max-height:calc(100vh - 165px)}
 .kcol-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)}
@@ -291,7 +279,6 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .kcard{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;cursor:grab;box-shadow:var(--shadow-sm);transition:.14s}
 .kcard:hover{box-shadow:var(--shadow);border-color:var(--border-2);transform:translateY(-1px)}
 
-/* Right-Side Notepad Detail Drawer */
 .drawer-root{position:fixed;inset:0;z-index:55;display:none}
 .drawer-root.open{display:block}
 .drawer-bg{position:absolute;inset:0;background:rgba(15,23,42,.42)}
@@ -305,7 +292,6 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .drawer-foot{padding:11px 18px;border-top:1px solid var(--border);background:var(--panel-2);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .note-card{background:var(--panel-2);border:1px solid var(--border);border-left:4px solid var(--primary);border-radius:9px;padding:9px 12px;margin-bottom:8px}
 
-/* Modals */
 .modal-root{position:fixed;inset:0;z-index:65;display:none}
 .modal-root.open{display:flex;align-items:center;justify-content:center;padding:20px 14px;background:rgba(15,23,42,.45)}
 .modal{background:#fff;border-radius:var(--radius-lg);width:100%;max-width:650px;max-height:90vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)}
@@ -318,23 +304,31 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;background:var(--panel-2);padding:10px;border-radius:10px;border:1px solid var(--border);max-height:185px;overflow-y:auto}
 .map-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 8px}
 
-/* Quick Toast */
 .save-toast{
   position:fixed;top:14px;right:20px;z-index:99;background:#0f172a;color:#fff;
   padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;box-shadow:var(--shadow-lg)
 }
 
-/* Near-Expiry Small Popup */
 .expiry-popup{
   position:fixed;bottom:18px;right:18px;z-index:90;width:330px;background:#fff;
   border:1px solid #fde68a;border-left:5px solid var(--warn);border-radius:12px;
   padding:13px 15px;box-shadow:var(--shadow-lg)
 }
+
+@media(max-width:768px){
+  .app{flex-direction:column}
+  .sidebar{width:100%;height:auto;position:relative;top:0}
+  .topbar{padding:10px 12px}
+  .search-wrap input{width:140px}
+  .grid.g-4,.grid.g-3,.grid.g-2,.grid.g-cal{grid-template-columns:1fr}
+  .kanban{flex-direction:column}
+  .kcol{flex:0 0 auto;width:100%}
+  .drawer{width:100vw}
+}
 </style>
 </head>
 <body>
 
-<!-- ============================ LOGIN SCREEN ============================ -->
 <div id="loginScreen" class="login-screen">
   <div class="login-aside">
     <div class="login-aside-inner">
@@ -345,11 +339,11 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
       </div>
       <p class="login-tag">Import leads, work the pipeline, close deals — and track every team member's performance.</p>
       <ul class="login-features">
-        <li><span>📥</span> Multi-Sheet Excel &amp; Google Sheets Import (Choose 1 or Import All Sheets)</li>
-        <li><span>🧩</span> Color-coded stages, direct calls &amp; drag-and-drop sales pipeline</li>
-        <li><span>⏰</span> Follow-up reminders &amp; clean auto-managed calendar</li>
-        <li><span>👥</span> Team Email/Link Invites + Working vs Qualified leads + HRMS</li>
-        <li><span>💬</span> WhatsApp &amp; email outreach</li>
+        <li><span>📥</span> Multi-Sheet Excel &amp; Google Sheets Import</li>
+        <li><span>🧩</span> Color-coded stages, direct calls &amp; sales pipeline</li>
+        <li><span>⏰</span> Follow-up reminders &amp; clean calendar</li>
+        <li><span>👥</span> Team Email/Link Invites &amp; HRMS</li>
+        <li><span>💬</span> Real-time Team Chat &amp; File Sharing</li>
       </ul>
     </div>
   </div>
@@ -399,7 +393,6 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
   </div>
 </div>
 
-<!-- ============================ MAIN APP SHELL ============================ -->
 <div id="app" class="app hidden">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -432,7 +425,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
       </button>
       <button class="nav-item" data-route="messages" onclick="UI.navigate('messages')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M21 14.5a2.5 2.5 0 0 1-2.5 2.5H8l-5 4V5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5z"/></svg>
-        <span>Messages</span>
+        <span>Team Chat</span>
       </button>
       <div class="nav-label">Insights</div>
       <button class="nav-item" data-route="reports" onclick="UI.navigate('reports')">
@@ -486,10 +479,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
   </div>
 </div>
 
-<!-- Notification Bell Popover -->
 <div id="notifPop" class="notif-pop hidden"></div>
-
-<!-- Small Near-Expiry Popup -->
 <div id="expiryPopup" class="expiry-popup hidden">
   <div style="display:flex;justify-content:space-between;align-items:center">
     <strong id="expPopTitle">⏳ Subscription Reminder</strong>
@@ -575,7 +565,7 @@ const API = {
     try {
       data = JSON.parse(text);
     } catch (e) {
-      throw new Error(`Endpoint ${url} returned invalid response. Please restart server.js in terminal.`);
+      throw new Error(`Endpoint ${url} returned invalid response. Please restart server.js.`);
     }
     if (!res.ok) throw new Error(data.error || 'Request failed');
     if (data.version && typeof window.__updateKnownDbVersion === 'function') {
@@ -853,7 +843,7 @@ const UI = {
       leads: ['Leads', 'Newly imported leads always appear at the TOP. Double-click any lead to open the Notepad Drawer.'],
       pipeline: ['Pipeline', 'Drag and drop deals across stages: New, Contacted, Qualified, Proposal Sent, Negotiation, Won, Lost'],
       calendar: ['Calendar & Follow-up Schedule', 'Clean interactive calendar with automatic past follow-up management'],
-      messages: ['Messages', 'Send WhatsApp & Email messages directly to leads or team members'],
+      messages: ['Team Chat & Document Sharing', 'Chat with team members and securely share documents & files in real time'],
       reports: ['Reports', 'Advanced stage conversion analytics & team performance breakdown'],
       team: ['Team & HRMS', 'Invite team members via Email/Magic Link, assign leads & view full HRMS profiles'],
       settings: ['Settings & Sharing', 'Configure Gantavya CRM sharing URL, Email SMTP & 1-Year subscription billing']
@@ -961,7 +951,6 @@ const UI = {
     else this.renderLeads();
   },
 
-  /* ==================== 1. DASHBOARD VIEW ==================== */
   async renderDashboard() {
     await this.refreshWorkspace();
     const allData = await API.req('/api/leads?page=1&limit=1000');
@@ -1039,7 +1028,6 @@ const UI = {
     `;
   },
 
-  /* ==================== 2. COMPACT LEADS SECTION ==================== */
   async renderLeads() {
     await this.refreshWorkspace();
     const f = this.leadFilter;
@@ -1161,7 +1149,6 @@ const UI = {
     }
   },
 
-  /* ==================== DOUBLE-CLICK NOTEPAD DRAWER ==================== */
   async openLeadDrawer(id) {
     const { lead } = await API.req(`/api/leads/${id}`);
     if (!lead) return;
@@ -1342,7 +1329,6 @@ const UI = {
     document.getElementById('drawerRoot').className = 'drawer-root';
   },
 
-  /* ==================== 3. PIPELINE KANBAN VIEW ==================== */
   async renderPipeline() {
     const data = await API.req('/api/leads?page=1&limit=1000');
     const leads = data.leads || [];
@@ -1390,7 +1376,6 @@ const UI = {
     await this.quickUpdateLead(id, { stage: newStage });
   },
 
-  /* ==================== 4. CLEAN CALENDAR & AUTO-MANAGED FOLLOW-UPS VIEW ==================== */
   async renderCalendar() {
     let leadFollowups = [];
     let customEvents = [];
@@ -1536,7 +1521,6 @@ const UI = {
     }
   },
 
-  /* ==================== 5. MESSAGES VIEW ==================== */
   async renderMessages() {
     let messagesList = [];
     try {
@@ -1546,88 +1530,94 @@ const UI = {
       messagesList = [];
     }
 
-    const leadsList = (this.workspace?.stats?.recentLeads || []);
+    const currentUserName = this.workspace?.user?.name || 'Admin';
     const root = document.getElementById('viewRoot');
 
     root.innerHTML = `
-      <div class="grid g-2">
-        <div class="card card-pad">
-          <h3>💬 WhatsApp &amp; Email Outreach</h3>
-          <label class="field">
-            <span>Quick Select Lead</span>
-            <select onchange="UI.fillMessageLead(this.value)">
-              <option value="">— Select a lead or type manually —</option>
-              ${leadsList.map(l => `<option value="${this.esc(l.company || l.name)}||${this.esc(l.phone || l.email || '')}">${this.esc(l.company || l.name)} (${this.esc(l.phone || '')})</option>`).join('')}
-            </select>
-          </label>
-          <label class="field"><span>Company / Person Name *</span><input id="m_lead" placeholder="AJ Industries" /></label>
-          <label class="field"><span>Mobile No or Email *</span><input id="m_to" placeholder="9876543210 or email@company.com" /></label>
-          <label class="field"><span>Channel</span>
-            <select id="m_chan">
-              <option value="WhatsApp">💬 WhatsApp Direct (wa.me)</option>
-              <option value="Email">✉️ Email (Gmail / Default Client)</option>
-            </select>
-          </label>
-          <label class="field"><span>Message *</span>
-            <textarea id="m_body">Hello, greetings from ${this.esc(this.workspace?.tenant?.company_name || 'Gantavya CRM')}! Following up regarding our discussion. Please let us know a convenient time to connect.</textarea>
-          </label>
-          <button class="btn btn-primary" style="margin-top:12px" onclick="UI.sendMessage()">🚀 Send &amp; Log Message</button>
+      <div class="card" style="display:flex;flex-direction:column;height:calc(100vh - 130px);max-height:750px">
+        <div class="card-head" style="background:var(--panel-2);display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <h3>💬 Real-Time Team Chat &amp; Document Sharing</h3>
+            <p class="muted sm">Chat with all team members instantly and share files or documents securely.</p>
+          </div>
+          <span class="stage-badge stage-green">🟢 Live Sync Active</span>
         </div>
 
-        <div class="card">
-          <div class="card-head"><h3>Sent Messages Log (${messagesList.length})</h3></div>
-          <div class="card-pad" style="max-height:420px;overflow-y:auto">
-            ${messagesList.map(m => `
-              <div style="padding:9px 0;border-bottom:1px solid var(--border)">
-                <div style="display:flex;justify-content:space-between">
-                  <b>[${this.esc(m.channel)}] ${this.esc(m.lead_name || m.recipient)} (${this.esc(m.recipient)})</b>
-                  <small class="muted">${new Date(m.sent_at).toLocaleString()}</small>
+        <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#f8fafc" id="chatMessagesBox">
+          ${messagesList.map(m => {
+            const isMe = String(m.sender_name || '').toLowerCase() === String(currentUserName).toLowerCase();
+            const timeStr = new Date(m.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return `
+              <div style="display:flex;flex-direction:column;align-items:${isMe ? 'flex-end' : 'flex-start'};width:100%">
+                <div style="max-width:75%;background:${isMe ? 'var(--primary)' : '#fff'};color:${isMe ? '#fff' : 'var(--text)'};border:1px solid ${isMe ? 'var(--primary)' : 'var(--border)'};padding:10px 14px;border-radius:12px;box-shadow:var(--shadow-sm)">
+                  <div style="font-size:11px;font-weight:700;color:${isMe ? 'rgba(255,255,255,.85)' : 'var(--primary)'};margin-bottom:3px">${this.esc(m.sender_name || 'Team Member')}</div>
+                  <div style="font-size:13.5px;word-break:break-word;white-space:pre-wrap">${this.esc(m.body)}</div>
+                  ${m.file_url ? `
+                    <div style="margin-top:8px;padding:8px 10px;background:${isMe ? 'rgba(255,255,255,.15)' : 'var(--panel-2)'};border-radius:8px;border:1px solid ${isMe ? 'rgba(255,255,255,.3)' : 'var(--border)'};display:flex;align-items:center;justify-content:space-between;gap:10px">
+                      <span style="font-size:12px;font-weight:600">📎 ${this.esc(m.file_name || 'Attachment')}</span>
+                      <a href="${m.file_url}" target="_blank" class="btn btn-sm" style="background:#fff;color:var(--text);padding:3px 8px;font-size:11px;text-decoration:none">Download / View ↗</a>
+                    </div>
+                  ` : ''}
+                  <div style="font-size:10px;text-align:right;color:${isMe ? 'rgba(255,255,255,.7)' : 'var(--muted)'};margin-top:4px">${timeStr}</div>
                 </div>
-                <p class="muted sm" style="margin-top:3px">${this.esc(m.body)}</p>
               </div>
-            `).join('') || '<p class="muted sm">No messages sent yet. Select a lead on the left and click Send!</p>'}
-          </div>
+            `;
+          }).join('') || '<div style="text-align:center;padding:40px;color:var(--muted)">No team chat messages yet. Start chatting below!</div>'}
+        </div>
+
+        <div style="padding:12px 16px;background:#fff;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label class="btn btn-ghost" style="cursor:pointer;padding:8px 12px" title="Attach Document or File">
+            📎 <input type="file" id="chatFileInput" style="display:none" onchange="UI.previewSelectedChatFile(this)" />
+          </label>
+          <div id="chatFilePreviewName" class="muted sm" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+          <input id="chatMessageInput" type="text" placeholder="Type a message to the team..." style="flex:1;padding:10px 14px;min-width:180px" onkeydown="if(event.key==='Enter')UI.sendTeamChatMessage()" />
+          <button class="btn btn-primary" onclick="UI.sendTeamChatMessage()">Send 🚀</button>
         </div>
       </div>
     `;
+
+    const box = document.getElementById('chatMessagesBox');
+    if (box) box.scrollTop = box.scrollHeight;
   },
 
-  fillMessageLead(val) {
-    if (!val) return;
-    const [name, contact] = val.split('||');
-    document.getElementById('m_lead').value = name || '';
-    document.getElementById('m_to').value = contact || '';
-  },
-
-  async sendMessage() {
-    const lead_name = document.getElementById('m_lead').value.trim();
-    const recipient = document.getElementById('m_to').value.trim();
-    const channel = document.getElementById('m_chan').value;
-    const body = document.getElementById('m_body').value.trim();
-    if (!recipient || !body) return alert('Enter recipient mobile/email and message');
-
-    let emailSentViaSmtp = false;
-    try {
-      const res = await API.req('/api/messages', {
-        method: 'POST',
-        body: JSON.stringify({ lead_name, recipient, channel, body })
-      });
-      emailSentViaSmtp = Boolean(res.emailSentViaSmtp);
-    } catch (e) {}
-
-    if (channel === 'WhatsApp') {
-      let digits = recipient.replace(/\D/g, '');
-      if (digits.length === 10) digits = '91' + digits;
-      window.open(`https://wa.me/${digits}?text=${encodeURIComponent(body)}`, '_blank');
-    } else if (!emailSentViaSmtp) {
-      window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${encodeURIComponent('Follow-up: ' + (lead_name || 'Discussion'))}&body=${encodeURIComponent(body)}`, '_blank');
-    } else {
-      alert('Email sent directly via SMTP!');
+  previewSelectedChatFile(input) {
+    const file = input.files[0];
+    const prev = document.getElementById('chatFilePreviewName');
+    if (prev && file) {
+      prev.textContent = `📎 ${file.name}`;
     }
-    this.renderMessages();
   },
 
-  /* ==================== 6. REPORTS VIEW (ADVANCED ANALYTICS) ==================== */
+  async sendTeamChatMessage() {
+    const input = document.getElementById('chatMessageInput');
+    const fileInput = document.getElementById('chatFileInput');
+    const body = input.value.trim();
+    const file = fileInput?.files[0];
+
+    if (!body && !file) return;
+
+    const fd = new FormData();
+    if (body) fd.append('body', body);
+    if (file) fd.append('file', file);
+    fd.append('recipient', 'General Team');
+
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${API.token}` },
+        body: fd
+      });
+      if (!res.ok) throw new Error('Failed to send message');
+      input.value = '';
+      if (fileInput) fileInput.value = '';
+      const prev = document.getElementById('chatFilePreviewName');
+      if (prev) prev.textContent = '';
+      this.renderMessages();
+    } catch (e) {
+      alert('Error sending message: ' + e.message);
+    }
+  },
+
   async renderReports() {
     await this.refreshWorkspace();
     const { stats, teamList } = this.workspace;
@@ -1659,7 +1649,6 @@ const UI = {
     setTimeout(() => {
       if (typeof Chart === 'undefined') return;
 
-      // 1. Leads by Stage Count
       const stageCounts = STAGES.map(s => allLeads.filter(l => l.stage === s).length);
       new Chart(document.getElementById('repStageCountChart'), {
         type: 'bar',
@@ -1670,7 +1659,6 @@ const UI = {
         options: { responsive: true, maintainAspectRatio: false }
       });
 
-      // 2. Deal Value by Stage
       const stageValues = STAGES.map(s => allLeads.filter(l => l.stage === s).reduce((acc, l) => acc + Number(l.deal_value || 0), 0));
       new Chart(document.getElementById('repStageValueChart'), {
         type: 'bar',
@@ -1681,7 +1669,6 @@ const UI = {
         options: { responsive: true, maintainAspectRatio: false }
       });
 
-      // 3. Team Member Leads Handled
       const teamNames = (teamList || []).map(t => t.full_name);
       const teamLeadCounts = teamNames.map(name => allLeads.filter(l => String(l.owner_name || '').toLowerCase().trim() === name.toLowerCase().trim()).length);
       new Chart(document.getElementById('repTeamLeadsChart'), {
@@ -1693,7 +1680,6 @@ const UI = {
         options: { responsive: true, maintainAspectRatio: false }
       });
 
-      // 4. Team Member Revenue Won
       const teamRevenue = teamNames.map(name => allLeads.filter(l => String(l.owner_name || '').toLowerCase().trim() === name.toLowerCase().trim() && l.stage === 'Won').reduce((acc, l) => acc + Number(l.deal_value || 0), 0));
       new Chart(document.getElementById('repTeamRevenueChart'), {
         type: 'bar',
@@ -1706,7 +1692,6 @@ const UI = {
     }, 50);
   },
 
-  /* ==================== 7. TEAM + EMAIL/LINK INVITE ACCESS + HRMS PROFILE ==================== */
   async renderTeam() {
     await this.refreshWorkspace();
     const data = await API.req('/api/team');
@@ -2151,7 +2136,6 @@ const UI = {
     this.renderTeam();
   },
 
-  /* ==================== 8. SETTINGS VIEW ==================== */
   async renderSettings() {
     await this.refreshWorkspace();
     const { tenant } = this.workspace;
@@ -2176,7 +2160,6 @@ const UI = {
     `;
   },
 
-  /* ==================== NEW LEAD & ADVANCED MULTI-SHEET IMPORT WIZARD ==================== */
   openLeadModal() {
     const teamOpts = (this.workspace?.teamList || []).map(m => m.full_name);
     if (!teamOpts.includes(this.workspace?.user?.name)) teamOpts.unshift(this.workspace?.user?.name || 'Admin');
@@ -2687,9 +2670,6 @@ const UI = {
 
 window.addEventListener('DOMContentLoaded', () => UI.init());
 
-// ============================================================================
-// ⚡ REAL-TIME TEAM AUTO-SYNC ENGINE (POLLS EVERY 2 SECONDS & UPDATES UI)
-// ============================================================================
 (function() {
   let knownVersion = 0;
   let isUserTyping = false;
@@ -2722,7 +2702,7 @@ window.addEventListener('DOMContentLoaded', () => UI.init());
         await UI.refreshWorkspace();
         if (document.querySelector('.drawer-root.open')) return;
         if (UI.route === 'dashboard') UI.renderDashboard();
-        else if (UI.route === 'leads') UI.renderLeads();
+        else if (UI.route === 'leads')UI.renderLeads();
         else if (UI.route === 'pipeline') UI.renderPipeline();
         else if (UI.route === 'calendar') UI.renderCalendar();
         else if (UI.route === 'team') UI.renderTeam();

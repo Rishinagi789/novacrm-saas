@@ -77,7 +77,16 @@ let isSavingToCloud = false;
 
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-const upload = multer({ dest: uploadDir, limits: { fileSize: 50 * 1024 * 1024 } });
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '');
+    const safeBase = path.basename(file.originalname || 'file', ext).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
+    cb(null, `${Date.now()}_${safeBase}${ext}`);
+  }
+});
+const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -85,7 +94,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(uploadDir));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/', (req, res) => {
+  const pubIndex = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(pubIndex)) return res.sendFile(pubIndex);
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 const uid = (prefix = 'id') => `${prefix}_${crypto.randomBytes(6).toString('hex')}`;
 const addDaysISO = (days, baseDate = new Date()) => {
@@ -308,6 +321,7 @@ function unifyAllWorkspaceRecords() {
     sqlDb.run(`UPDATE employees SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
     sqlDb.run(`UPDATE calendar_events SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
     sqlDb.run(`UPDATE messages SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
+    sqlDb.run(`UPDATE team_chats SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
   } catch (e) {}
 }
 
@@ -449,6 +463,19 @@ CREATE TABLE IF NOT EXISTS messages (
   status TEXT DEFAULT 'Sent',
   sent_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS team_chats (
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  sender_name TEXT NOT NULL,
+  sender_role TEXT DEFAULT '',
+  recipient_name TEXT NOT NULL DEFAULT 'ALL',
+  message_text TEXT DEFAULT '',
+  file_url TEXT DEFAULT '',
+  file_name TEXT DEFAULT '',
+  file_size TEXT DEFAULT '',
+  file_type TEXT DEFAULT '',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS subscription_payments (
   id TEXT PRIMARY KEY,
   tenant_id TEXT NOT NULL,
@@ -469,6 +496,22 @@ function ensureAllColumnsAndTables() {
       try { sqlDb.run(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`); } catch (e) {}
     }
   };
+
+  sqlDb.run(`
+    CREATE TABLE IF NOT EXISTS team_chats (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      sender_name TEXT NOT NULL,
+      sender_role TEXT DEFAULT '',
+      recipient_name TEXT NOT NULL DEFAULT 'ALL',
+      message_text TEXT DEFAULT '',
+      file_url TEXT DEFAULT '',
+      file_name TEXT DEFAULT '',
+      file_size TEXT DEFAULT '',
+      file_type TEXT DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 
   ensureCol('tenants', 'public_share_url', "TEXT DEFAULT ''");
   ensureCol('tenants', 'smtp_email', "TEXT DEFAULT ''");
@@ -968,7 +1011,6 @@ app.post('/api/leads/bulk-assign', authMiddleware, (req, res) => {
   res.json({ success: true, count: ids.length, version: currentDbVersion });
 });
 
-// Server-side File Parse Fallback Endpoint (in case browser XLSX CDN is blocked or slow)
 app.post('/api/leads/parse-file', authMiddleware, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   try {
@@ -1014,7 +1056,6 @@ app.post('/api/leads/fetch-google-sheet', authMiddleware, async (req, res) => {
         if (contentType.includes('text/html') || sampleStr.includes('accounts.google.com') || sampleStr.trim().startsWith('<!DOCTYPE html>')) {
           continue;
         }
-        // Also parse on server using XLSX so browser gets ready-to-use sheet matrix immediately
         const wb = XLSX.read(buffer, { type: 'buffer' });
         const sheetsData = {};
         (wb.SheetNames || []).forEach(name => {
@@ -1159,6 +1200,60 @@ app.delete('/api/calendar/:id', authMiddleware, (req, res) => {
   res.json({ success: true, version: currentDbVersion });
 });
 
+// ================= WHATSAPP-STYLE TEAM MESSENGER & FILE SHARING API =================
+app.get('/api/team-chat', authMiddleware, (req, res) => {
+  const chats = queryAll(`
+    SELECT * FROM team_chats
+    WHERE tenant_id = ?
+    ORDER BY created_at ASC, ROWID ASC
+    LIMIT 500
+  `, [req.tenant.id]);
+  res.json({ chats, version: currentDbVersion });
+});
+
+app.post('/api/team-chat', authMiddleware, upload.single('file'), (req, res) => {
+  const message_text = String(req.body.message_text || '').trim();
+  const recipient_name = String(req.body.recipient_name || 'ALL').trim();
+
+  if (!message_text && !req.file) {
+    return res.status(400).json({ error: 'Type a message or attach a file' });
+  }
+
+  let file_url = '';
+  let file_name = '';
+  let file_size = '';
+  let file_type = '';
+
+  if (req.file) {
+    file_url = `/uploads/${req.file.filename}`;
+    file_name = req.file.originalname;
+    file_size = Math.max(1, Math.round(req.file.size / 1024)) + ' KB';
+    file_type = req.file.mimetype || 'application/octet-stream';
+  }
+
+  const id = uid('chat');
+  const now = new Date().toISOString();
+
+  runSql(`
+    INSERT INTO team_chats (
+      id, tenant_id, sender_name, sender_role, recipient_name,
+      message_text, file_url, file_name, file_size, file_type, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    id, req.tenant.id, req.user.name, req.user.role || 'member',
+    recipient_name, message_text, file_url, file_name, file_size, file_type, now
+  ]);
+
+  const newChat = queryOne('SELECT * FROM team_chats WHERE id = ?', [id]);
+  res.json({ success: true, chat: newChat, version: currentDbVersion });
+});
+
+app.delete('/api/team-chat/:id', authMiddleware, (req, res) => {
+  runSql('DELETE FROM team_chats WHERE id = ?', [req.params.id]);
+  res.json({ success: true, version: currentDbVersion });
+});
+
+// Legacy Email/Invite SMTP Log Endpoint (Used by Team Invite Email Sender)
 app.get('/api/messages', authMiddleware, (req, res) => {
   const messages = queryAll('SELECT * FROM messages WHERE tenant_id = ? ORDER BY sent_at DESC LIMIT 100', [req.tenant.id]);
   res.json({ messages });
@@ -1355,7 +1450,6 @@ app.post('/api/subscriptions/upgrade-1yr', authMiddleware, (req, res) => {
   res.json({ success: true, validUntil });
 });
 
-// JSON 404 Handler for any unknown /api/* route so frontend never gets HTML parse errors
 app.use('/api', (req, res) => {
   res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl}` });
 });
