@@ -85,11 +85,13 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(uploadDir));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
+
 app.get('/', (req, res) => {
   const pubIndex = path.join(__dirname, 'public', 'index.html');
   if (fs.existsSync(pubIndex)) return res.sendFile(pubIndex);
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+
 // ================= DIRECT /admin ROUTE FOR GANTAVYA MASTER ADMIN PORTAL =================
 app.get(['/admin', '/admin/', '/master-admin', '/master-admin.html'], (req, res) => {
   const pubAdmin = path.join(__dirname, 'public', 'master-admin.html');
@@ -108,11 +110,20 @@ app.get('/api/master/backup-db', masterAdminMiddleware, (req, res) => {
   res.send(buf);
 });
 
-// Master Admin Delete Workspace Endpoint
+// Master Admin Delete Workspace Endpoint (Fixed to strictly wipe isolated tenant data)
 app.delete('/api/master/tenants/:id', masterAdminMiddleware, (req, res) => {
   const tId = req.params.id;
-  runSql('DELETE FROM tenants WHERE id = ?', [tId], false);
-  res.json({ success: true });
+  try {
+    runSql('DELETE FROM tenants WHERE id = ?', [tId], true);
+    runSql('DELETE FROM users WHERE tenant_id = ?', [tId], true);
+    runSql('DELETE FROM employees WHERE tenant_id = ?', [tId], true);
+    runSql('DELETE FROM leads WHERE tenant_id = ?', [tId], true);
+    runSql('DELETE FROM calendar_events WHERE tenant_id = ?', [tId], true);
+    runSql('DELETE FROM messages WHERE tenant_id = ?', [tId], false);
+    res.json({ success: true, message: 'Workspace and all associated records deleted completely.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 const uid = (prefix = 'id') => `${prefix}_${crypto.randomBytes(6).toString('hex')}`;
@@ -260,7 +271,6 @@ async function pullLatestFromCloudIfNewer() {
             sqlDb = new SQL_ENGINE.Database(buf);
             fs.writeFileSync(DB_FILE, buf);
             currentDbVersion = Number(fullRes.rows[0].version_ts);
-            unifyAllWorkspaceRecords();
           }
         }
       }
@@ -272,7 +282,6 @@ async function pullLatestFromCloudIfNewer() {
         sqlDb = new SQL_ENGINE.Database(buf);
         fs.writeFileSync(DB_FILE, buf);
         currentDbVersion = Number(data.version_ts);
-        unifyAllWorkspaceRecords();
       }
     }
   } catch (e) {}
@@ -317,26 +326,6 @@ function runSql(sql, params = [], skipSave = false) {
   const cleanParams = params.map(p => (p === undefined ? null : p));
   sqlDb.run(sql, cleanParams);
   if (!skipSave) persistDb();
-}
-
-function getPrimaryWorkspace() {
-  return queryOne(`
-    SELECT t.* FROM tenants t
-    ORDER BY (SELECT COUNT(*) FROM leads l WHERE l.tenant_id = t.id) DESC, t.ROWID ASC
-    LIMIT 1
-  `);
-}
-
-function unifyAllWorkspaceRecords() {
-  try {
-    const primary = getPrimaryWorkspace();
-    if (!primary) return;
-    sqlDb.run(`UPDATE users SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
-    sqlDb.run(`UPDATE leads SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
-    sqlDb.run(`UPDATE employees SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
-    sqlDb.run(`UPDATE calendar_events SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
-    sqlDb.run(`UPDATE messages SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
-  } catch (e) {}
 }
 
 // ================= AUTOMATIC CALENDAR & PAST FOLLOW-UP CLEANUP =================
@@ -539,7 +528,6 @@ function ensureAllColumnsAndTables() {
     sqlDb.run(`UPDATE leads SET sort_order = ROWID WHERE sort_order IS NULL OR sort_order = 0`);
   } catch (e) {}
 
-  unifyAllWorkspaceRecords();
   persistDb();
 }
 
@@ -550,11 +538,17 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    let tenant = getPrimaryWorkspace();
-    if (!tenant) {
-      tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [decoded.tenantId]);
-    }
+    const tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [decoded.tenantId]);
     if (!tenant) return res.status(401).json({ error: 'Workspace not found' });
+
+    // Strict Tenant Check for Suspended / Expired Status
+    if (tenant.status === 'suspended') {
+      return res.status(403).json({ error: 'Access Denied: This workspace has been suspended by Master Admin.' });
+    }
+    const now = new Date().getTime();
+    if (tenant.access_end && new Date(tenant.access_end).getTime() < now) {
+      return res.status(403).json({ error: 'Access Denied: Workspace subscription validity has expired.' });
+    }
 
     const uRow = queryOne('SELECT email FROM users WHERE id = ?', [decoded.userId]);
     const msLeft = new Date(tenant.access_end).getTime() - Date.now();
@@ -564,7 +558,7 @@ function authMiddleware(req, res, next) {
     req.tenant = { ...tenant, daysLeft };
     next();
   } catch (e) {
-    return res.status(401).json({ error: 'Invalid or expired session token' });
+    return res.status(401).json({ error: e.message || 'Invalid or expired session token' });
   }
 }
 
@@ -602,7 +596,6 @@ app.post('/api/cloud-db-bridge', (req, res) => {
     sqlDb = new SQL_ENGINE.Database(buf);
     fs.writeFileSync(DB_FILE, buf);
     currentDbVersion = Number(version_ts) || Date.now();
-    unifyAllWorkspaceRecords();
     if (pgPool) pushDbToSupabase(buf, currentDbVersion);
     res.json({ success: true, version_ts: currentDbVersion });
   } catch (e) {
@@ -627,20 +620,19 @@ app.post('/api/master/provision-client', masterAdminMiddleware, (req, res) => {
   if (!companyName || !email || !username || !password || !accessDays) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  const existingPrimary = getPrimaryWorkspace();
-  const tenantId = existingPrimary ? existingPrimary.id : uid('tnt');
+
+  // Ensure fully unique tenant ID for every new company created
+  const tenantId = uid('tnt');
   const userId = uid('usr');
   const now = new Date().toISOString();
   const accessEnd = addDaysISO(Number(accessDays));
   const hash = bcrypt.hashSync(password, 10);
 
   try {
-    if (!existingPrimary) {
-      runSql(`
-        INSERT INTO tenants (id, company_name, contact_name, email, phone, plan_type, status, access_start, access_end, max_users, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
-      `, [tenantId, companyName, contactName, email.toLowerCase(), phone || '', planType || 'custom_access', now, accessEnd, maxUsers || 25, now], true);
-    }
+    runSql(`
+      INSERT INTO tenants (id, company_name, contact_name, email, phone, plan_type, status, access_start, access_end, max_users, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
+    `, [tenantId, companyName, contactName, email.toLowerCase(), phone || '', planType || 'custom_access', now, accessEnd, maxUsers || 25, now], true);
 
     runSql(`
       INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, full_name, role, created_at)
@@ -672,6 +664,7 @@ app.post('/api/master/update-access', masterAdminMiddleware, (req, res) => {
   res.json({ success: true, accessEnd: newEnd });
 });
 
+// ================= FIXED LOGIN API WITH SUSPEND & CORRECT TENANT ISOLATION =================
 app.post('/api/auth/login', (req, res) => {
   const { loginId, password } = req.body;
   if (!loginId || !password) return res.status(400).json({ error: 'Enter User ID/Email and Password' });
@@ -682,8 +675,7 @@ app.post('/api/auth/login', (req, res) => {
   if (!user) {
     const emp = queryOne('SELECT * FROM employees WHERE LOWER(login_username) = ? OR LOWER(email) = ?', [clean, clean]);
     if (emp && (emp.login_password_hint === password || password === 'team123')) {
-      const primary = getPrimaryWorkspace();
-      const tId = primary ? primary.id : emp.tenant_id;
+      const tId = emp.tenant_id;
       const newUid = uid('usr');
       const hash = bcrypt.hashSync(password, 10);
       runSql(`
@@ -698,7 +690,18 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'Invalid User ID or Password' });
   }
 
-  const tenant = getPrimaryWorkspace() || queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
+  // Strict Tenant Status & Expiry Check
+  const tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
+  if (!tenant) return res.status(404).json({ error: 'Associated workspace not found' });
+
+  if (tenant.status === 'suspended') {
+    return res.status(403).json({ error: 'Access Denied: This workspace has been suspended by Master Admin.' });
+  }
+  const nowTime = new Date().getTime();
+  if (tenant.access_end && new Date(tenant.access_end).getTime() < nowTime) {
+    return res.status(403).json({ error: 'Access Denied: Workspace subscription validity has expired.' });
+  }
+
   const token = jwt.sign({ userId: user.id, tenantId: tenant.id, role: user.role, name: user.full_name, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
 
   res.json({ token, user: { id: user.id, name: user.full_name, email: user.email, role: user.role }, tenant });
@@ -710,44 +713,36 @@ app.post('/api/auth/google-or-signup', (req, res) => {
 
   const cleanEmail = email.toLowerCase().trim();
   let user = queryOne('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ?', [cleanEmail, cleanEmail]);
-  let primaryTenant = getPrimaryWorkspace();
+  let tenant = null;
 
-  if (!user) {
+  if (user) {
+    tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
+  } else {
     const userId = uid('usr');
+    const tenantId = uid('tnt');
     const now = new Date().toISOString();
     const accessEnd = addDaysISO(7);
     const hash = password ? bcrypt.hashSync(password, 10) : bcrypt.hashSync('team123', 10);
 
-    let tenantId = primaryTenant ? primaryTenant.id : uid('tnt');
-    let assignedRole = primaryTenant ? 'agent' : 'admin';
-
-    if (!primaryTenant) {
-      runSql(`
-        INSERT INTO tenants (id, company_name, contact_name, email, phone, plan_type, status, access_start, access_end, max_users, created_at)
-        VALUES (?, ?, ?, ?, ?, 'trial_7d', 'active', ?, ?, 25, ?)
-      `, [tenantId, companyName || `${fullName}'s Workspace`, fullName, cleanEmail, phone || '', now, accessEnd, now], true);
-      primaryTenant = queryOne('SELECT * FROM tenants WHERE id = ?', [tenantId]);
-    }
+    runSql(`
+      INSERT INTO tenants (id, company_name, contact_name, email, phone, plan_type, status, access_start, access_end, max_users, created_at)
+      VALUES (?, ?, ?, ?, ?, 'trial_7d', 'active', ?, ?, 25, ?)
+    `, [tenantId, companyName || `${fullName}'s Workspace`, fullName, cleanEmail, phone || '', now, accessEnd, now], true);
+    tenant = queryOne('SELECT * FROM tenants WHERE id = ?', [tenantId]);
 
     runSql(`
       INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, google_id, full_name, role, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [userId, tenantId, cleanEmail, cleanEmail, hash, password || 'team123', googleId || null, fullName, assignedRole, now], true);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'admin', ?)
+    `, [userId, tenantId, cleanEmail, cleanEmail, hash, password || 'team123', googleId || null, fullName, now], true);
 
-    const existingEmp = queryOne('SELECT * FROM employees WHERE LOWER(email) = ?', [cleanEmail]);
-    if (!existingEmp) {
-      runSql(`
-        INSERT INTO employees (id, tenant_id, emp_code, full_name, designation, department, role, login_username, login_password_hint, email, phone, joining_date, status, created_at)
-        VALUES (?, ?, ?, ?, ?, 'Management & Sales', ?, ?, ?, ?, ?, ?, 'Active', ?)
-      `, [uid('emp'), tenantId, `EMP-${Date.now().toString().slice(-3)}`, fullName, assignedRole === 'admin' ? 'Founder / Admin' : 'Team Member', assignedRole, cleanEmail, password || 'team123', cleanEmail, phone || '', now.slice(0, 10), now], false);
-    } else {
-      persistDb();
-    }
+    runSql(`
+      INSERT INTO employees (id, tenant_id, emp_code, full_name, designation, department, role, login_username, login_password_hint, email, phone, joining_date, status, created_at)
+      VALUES (?, ?, ?, ?, 'Founder / Admin', 'Management & Sales', 'admin', ?, ?, ?, ?, ?, 'Active', ?)
+    `, [uid('emp'), tenantId, `EMP-${Date.now().toString().slice(-3)}`, fullName, cleanEmail, password || 'team123', cleanEmail, phone || '', now.slice(0, 10), now], false);
 
     user = queryOne('SELECT * FROM users WHERE id = ?', [userId]);
   }
 
-  const tenant = primaryTenant || queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
   const token = jwt.sign({ userId: user.id, tenantId: tenant.id, role: user.role, name: user.full_name, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
 
   res.json({ token, user: { id: user.id, name: user.full_name, email: user.email, role: user.role }, tenant, requirePayment: planChoice === 'annual_1yr' });
@@ -814,7 +809,7 @@ app.post('/api/workspace/share-settings', authMiddleware, (req, res) => {
   res.json({ success: true, version: currentDbVersion });
 });
 
-// ================= LEADS API (NEWLY IMPORTED & CREATED LEADS ALWAYS AT TOP) =================
+// ================= LEADS API (STRICTLY ISOLATED BY TENANT) =================
 app.get('/api/leads', authMiddleware, (req, res) => {
   const page = Math.max(1, parseInt(req.query.page || '1', 10));
   const limit = Math.min(2000, Math.max(10, parseInt(req.query.limit || '50', 10)));
@@ -841,7 +836,7 @@ app.get('/api/leads', authMiddleware, (req, res) => {
 });
 
 app.get('/api/leads/:id', authMiddleware, (req, res) => {
-  const lead = queryOne('SELECT * FROM leads WHERE id = ?', [req.params.id]);
+  const lead = queryOne('SELECT * FROM leads WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
   res.json({ lead, version: currentDbVersion });
 });
@@ -900,7 +895,7 @@ app.post('/api/leads', authMiddleware, (req, res) => {
 });
 
 app.post('/api/leads/:id/quick-update', authMiddleware, (req, res) => {
-  const lead = queryOne('SELECT * FROM leads WHERE id = ?', [req.params.id]);
+  const lead = queryOne('SELECT * FROM leads WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
   if (!lead) return res.status(404).json({ error: 'Lead not found' });
 
   const body = req.body || {};
@@ -959,19 +954,19 @@ app.post('/api/leads/:id/quick-update', authMiddleware, (req, res) => {
 
   runSql(`
     UPDATE leads SET
-      tenant_id = ?, company = ?, name = ?, phone = ?, email = ?,
+      company = ?, name = ?, phone = ?, email = ?,
       stage = ?, interest_level = ?, talk_summary = ?,
       followup_required = ?, followup_date = ?,
       notes_history_json = ?, qualified_by = ?,
       address = ?, links = ?, owner_name = ?, deal_value = ?
-    WHERE id = ?
+    WHERE id = ? AND tenant_id = ?
   `, [
-    req.tenant.id, nextCompany, nextName, nextPhone, nextEmail,
+    nextCompany, nextName, nextPhone, nextEmail,
     nextStage, nextInterest, nextTalk,
     nextFollowReq, nextFollowDate,
     JSON.stringify(history), qualBy,
     nextAddress, nextLinks, nextOwner, nextDealVal,
-    lead.id
+    lead.id, req.tenant.id
   ], true);
 
   runSql('DELETE FROM calendar_events WHERE lead_id = ?', [lead.id], true);
@@ -998,7 +993,7 @@ app.post('/api/leads/bulk-assign', authMiddleware, (req, res) => {
   }
   sqlDb.run('BEGIN TRANSACTION');
   for (const id of ids) {
-    sqlDb.run('UPDATE leads SET owner_name = ? WHERE id = ?', [owner_name, id]);
+    sqlDb.run('UPDATE leads SET owner_name = ? WHERE id = ? AND tenant_id = ?', [owner_name, id, req.tenant.id]);
   }
   sqlDb.run('COMMIT');
   persistDb();
@@ -1072,7 +1067,6 @@ app.post('/api/leads/fetch-google-sheet', authMiddleware, async (req, res) => {
   }
 });
 
-// ================= IMPORT LEADS AT THE TOP OF THE LIST (PRESERVING SHEET ORDER) =================
 app.post('/api/leads/import-mapped', authMiddleware, (req, res) => {
   const { leads, source, assignTo } = req.body;
   if (!Array.isArray(leads) || leads.length === 0) return res.status(400).json({ error: 'No leads to import' });
@@ -1138,22 +1132,22 @@ app.post('/api/leads/import-mapped', authMiddleware, (req, res) => {
 
 app.delete('/api/leads/:id', authMiddleware, (req, res) => {
   runSql('DELETE FROM calendar_events WHERE lead_id = ?', [req.params.id], true);
-  runSql('DELETE FROM leads WHERE id = ?', [req.params.id], false);
+  runSql('DELETE FROM leads WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id], false);
   res.json({ success: true, version: currentDbVersion });
 });
 
 app.post('/api/leads/bulk-delete', authMiddleware, (req, res) => {
   const { ids, deleteAll } = req.body;
   if (deleteAll === true) {
-    runSql('DELETE FROM calendar_events WHERE lead_id != ""', [], true);
-    runSql('DELETE FROM leads', [], false);
+    runSql('DELETE FROM calendar_events WHERE tenant_id = ?', [req.tenant.id], true);
+    runSql('DELETE FROM leads WHERE tenant_id = ?', [req.tenant.id], false);
     return res.json({ success: true, version: currentDbVersion });
   }
   if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'No leads selected' });
   sqlDb.run('BEGIN TRANSACTION');
   for (const id of ids) {
     sqlDb.run('DELETE FROM calendar_events WHERE lead_id = ?', [id]);
-    sqlDb.run('DELETE FROM leads WHERE id = ?', [id]);
+    sqlDb.run('DELETE FROM leads WHERE id = ? AND tenant_id = ?', [id, req.tenant.id]);
   }
   sqlDb.run('COMMIT');
   persistDb();
@@ -1190,11 +1184,11 @@ app.post('/api/calendar', authMiddleware, (req, res) => {
 });
 
 app.delete('/api/calendar/:id', authMiddleware, (req, res) => {
-  runSql('DELETE FROM calendar_events WHERE id = ?', [req.params.id]);
+  runSql('DELETE FROM calendar_events WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
   res.json({ success: true, version: currentDbVersion });
 });
 
-// ================= MESSAGES API (TEAM CHAT + DIRECT INDIVIDUAL CHAT + FILE SHARING + EMAIL INVITES) =================
+// ================= MESSAGES API =================
 app.get('/api/messages', authMiddleware, (req, res) => {
   const messages = queryAll('SELECT * FROM messages WHERE tenant_id = ? ORDER BY sent_at ASC LIMIT 300', [req.tenant.id]);
   res.json({ messages });
@@ -1315,7 +1309,7 @@ app.post('/api/team', authMiddleware, (req, res) => {
   const now = new Date().toISOString();
 
   if (id) {
-    const existing = queryOne('SELECT * FROM employees WHERE id = ?', [id]);
+    const existing = queryOne('SELECT * FROM employees WHERE id = ? AND tenant_id = ?', [id, req.tenant.id]);
     if (!existing) return res.status(404).json({ error: 'Team member not found' });
 
     const passHint = login_password ? login_password : (existing.login_password_hint || 'team123');
@@ -1324,19 +1318,19 @@ app.post('/api/team', authMiddleware, (req, res) => {
       login_username=?, login_password_hint=?, email=?, phone=?, joining_date=?,
       monthly_salary=?, location=?, education=?, emergency_contact=?, address=?,
       bank_details=?, background_summary=?, previous_companies_json=?
-      WHERE id=?
+      WHERE id=? AND tenant_id=?
     `, [
       emp_code || existing.emp_code, full_name, designation, department || 'Sales & Revenue', role || 'agent',
       cleanUser, passHint, cleanEmail, phone || '', joining_date || existing.joining_date,
       Number(monthly_salary || 0), location || '', education || '', emergency_contact || '',
-      address || '', bank_details || '', background_summary || '', prevJson, id
+      address || '', bank_details || '', background_summary || '', prevJson, id, req.tenant.id
     ]);
 
     const hash = bcrypt.hashSync(passHint, 10);
-    const uRow = queryOne('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?', [cleanUser, cleanEmail]);
+    const uRow = queryOne('SELECT * FROM users WHERE tenant_id = ? AND (LOWER(username) = ? OR LOWER(email) = ?)', [req.tenant.id, cleanUser, cleanEmail]);
     if (uRow) {
-      runSql('UPDATE users SET tenant_id=?, username=?, email=?, password_hash=?, plain_pass_hint=?, full_name=?, role=? WHERE id=?',
-        [req.tenant.id, cleanUser, cleanEmail, hash, passHint, full_name, role || 'agent', uRow.id]);
+      runSql('UPDATE users SET username=?, email=?, password_hash=?, plain_pass_hint=?, full_name=?, role=? WHERE id=?',
+        [cleanUser, cleanEmail, hash, passHint, full_name, role || 'agent', uRow.id]);
     } else {
       runSql(`
         INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, full_name, role, created_at)
@@ -1366,14 +1360,14 @@ app.post('/api/team', authMiddleware, (req, res) => {
       bank_details || '', background_summary || '', prevJson, now
     ], true);
 
-    const existingU = queryOne('SELECT * FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?', [cleanUser, cleanEmail]);
+    const existingU = queryOne('SELECT * FROM users WHERE tenant_id = ? AND (LOWER(username) = ? OR LOWER(email) = ?)', [req.tenant.id, cleanUser, cleanEmail]);
     if (!existingU) {
       runSql(`
         INSERT INTO users (id, tenant_id, username, email, password_hash, plain_pass_hint, full_name, role, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [uid('usr'), req.tenant.id, cleanUser, cleanEmail, hash, passToUse, full_name, role || 'agent', now], false);
     } else {
-      runSql('UPDATE users SET tenant_id = ?, password_hash = ?, plain_pass_hint = ? WHERE id = ?', [req.tenant.id, hash, passToUse, existingU.id], false);
+      runSql('UPDATE users SET password_hash = ?, plain_pass_hint = ? WHERE id = ?', [hash, passToUse, existingU.id], false);
     }
 
     return res.json({ success: true, id: newId, login_username: cleanUser, login_password: passToUse, version: currentDbVersion });
@@ -1381,7 +1375,7 @@ app.post('/api/team', authMiddleware, (req, res) => {
 });
 
 app.post('/api/team/:id/documents', authMiddleware, upload.single('doc'), (req, res) => {
-  const emp = queryOne('SELECT * FROM employees WHERE id = ?', [req.params.id]);
+  const emp = queryOne('SELECT * FROM employees WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
   if (!emp || !req.file) return res.status(404).json({ error: 'Team member or file not found' });
 
   let docs = [];
@@ -1395,12 +1389,12 @@ app.post('/api/team/:id/documents', authMiddleware, upload.single('doc'), (req, 
     fileUrl: `/uploads/${req.file.filename}`
   });
 
-  runSql('UPDATE employees SET documents_json = ? WHERE id = ?', [JSON.stringify(docs), emp.id]);
+  runSql('UPDATE employees SET documents_json = ? WHERE id = ? AND tenant_id = ?', [JSON.stringify(docs), emp.id, req.tenant.id]);
   res.json({ success: true, documents: docs, version: currentDbVersion });
 });
 
 app.delete('/api/team/:id', authMiddleware, (req, res) => {
-  runSql('DELETE FROM employees WHERE id = ?', [req.params.id]);
+  runSql('DELETE FROM employees WHERE id = ? AND tenant_id = ?', [req.params.id, req.tenant.id]);
   res.json({ success: true, version: currentDbVersion });
 });
 
@@ -1418,7 +1412,7 @@ app.post('/api/subscriptions/upgrade-1yr', authMiddleware, (req, res) => {
   res.json({ success: true, validUntil });
 });
 
-// JSON 404 Handler for any unknown /api/* route so frontend never gets HTML parse errors
+// JSON 404 Handler
 app.use('/api', (req, res) => {
   res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl}` });
 });
@@ -1443,10 +1437,10 @@ initSqlJs().then(async (SQL) => {
 
   const netUrls = getLocalNetworkUrls();
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Gantavya CRM + HRMS Server (Real-Time Team Synced) running!`);
+    console.log(`✅ Gantavya CRM + HRMS Server (Multi-Tenant Isolated) running!`);
     console.log(`💻 On this PC: http://localhost:${PORT}`);
-    if (netUrls.length) console.log(`🌐 Share on Wi-Fi / Office LAN: ${netUrls[0]}`);
-    console.log(`🔒 Hidden Master Admin Portal: http://localhost:${PORT}/master-admin.html`);
+    if (netUrls.length) console.log(`🌐 Office LAN: ${netUrls[0]}`);
+    console.log(`🔒 Master Admin Portal: http://localhost:${PORT}/master-admin.html`);
   });
 
   setInterval(() => {
