@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>Gantavya CRM — Enterprise CRM & Team HRMS</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
@@ -101,7 +101,7 @@ textarea{resize:vertical;min-height:70px}
 .app{display:flex;min-height:100vh}
 .sidebar{
   width:242px;flex:0 0 242px;background:#fff;border-right:1px solid var(--border);
-  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;z-index:30
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;z-index:30;transition:transform .22s ease
 }
 .sidebar-brand{
   display:flex;align-items:flex-end;gap:0;padding:12px 14px 12px 4px;
@@ -181,7 +181,7 @@ textarea{resize:vertical;min-height:70px}
 .kpi-value{font-size:21px;font-weight:750;letter-spacing:-.02em;line-height:1.1}
 .kpi-foot{font-size:11.2px;color:var(--muted);display:flex;align-items:center;gap:5px}
 
-.table-wrap{overflow-x:auto}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
 table.tbl th{
   text-align:left;font-size:10.8px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);
@@ -254,7 +254,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 }
 
 .fc{font-size:11.8px !important;--fc-border-color:var(--border);--fc-today-bg-color:var(--primary-soft)}
-.fc .fc-toolbar.fc-header-toolbar{margin-bottom:10px !important}
+.fc .fc-toolbar.fc-header-toolbar{margin-bottom:10px !important;flex-wrap:wrap;gap:6px}
 .fc .fc-toolbar-title{font-size:14.5px !important;font-weight:750}
 .fc .fc-button{padding:4px 9px !important;font-size:11.5px !important;border-radius:7px !important;font-weight:600;text-transform:capitalize}
 .fc .fc-daygrid-day-frame{min-height:54px !important}
@@ -263,7 +263,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .fc-event{font-size:10.8px !important;padding:1px 4px !important;border-radius:4px !important;cursor:pointer;border:none !important}
 
 .notif-pop{
-  position:fixed;top:56px;right:20px;width:360px;max-height:72vh;overflow-y:auto;background:#fff;
+  position:fixed;top:56px;right:20px;width:min(360px,92vw);max-height:72vh;overflow-y:auto;background:#fff;
   border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:75
 }
 .notif-head{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:2}
@@ -298,7 +298,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 .modal.wide{max-width:1040px}
 .modal-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .modal-body{padding:16px 18px;overflow-y:auto;flex:1}
-.modal-foot{padding:11px 18px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:var(--panel-2);border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+.modal-foot{padding:11px 18px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;background:var(--panel-2);border-radius:0 0 var(--radius-lg) var(--radius-lg);flex-wrap:wrap}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
 .form-grid .full{grid-column:1/-1}
 .map-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;background:var(--panel-2);padding:10px;border-radius:10px;border:1px solid var(--border);max-height:185px;overflow-y:auto}
@@ -310,20 +310,62 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 }
 
 .expiry-popup{
-  position:fixed;bottom:18px;right:18px;z-index:90;width:330px;background:#fff;
+  position:fixed;bottom:18px;right:18px;z-index:90;width:min(330px,92vw);background:#fff;
   border:1px solid #fde68a;border-left:5px solid var(--warn);border-radius:12px;
   padding:13px 15px;box-shadow:var(--shadow-lg)
 }
 
-@media(max-width:768px){
-  .app{flex-direction:column}
-  .sidebar{width:100%;height:auto;position:relative;top:0}
-  .topbar{padding:10px 12px}
-  .search-wrap input{width:140px}
-  .grid.g-4,.grid.g-3,.grid.g-2,.grid.g-cal{grid-template-columns:1fr}
-  .kanban{flex-direction:column}
-  .kcol{flex:0 0 auto;width:100%}
+/* Chat Layout (Team Chat + Individual Direct Messages) */
+.chat-shell{
+  display:grid;grid-template-columns:270px 1fr;gap:14px;height:calc(100vh - 125px);min-height:480px
+}
+.chat-sidebar{
+  display:flex;flex-direction:column;overflow:hidden
+}
+.chat-member-list{
+  flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:5px
+}
+.chat-contact-btn{
+  width:100%;display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;
+  border:1px solid transparent;background:transparent;cursor:pointer;text-align:left;transition:.14s
+}
+.chat-contact-btn:hover{background:var(--panel-2);border-color:var(--border)}
+.chat-contact-btn.active{background:var(--primary-soft);border-color:var(--primary-soft-2);color:var(--primary-600)}
+.chat-main{
+  display:flex;flex-direction:column;height:100%;overflow:hidden
+}
+
+/* Mobile Menu Button & Responsive Breakpoints */
+.mobile-menu-btn{display:none}
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:45}
+
+@media(max-width:900px){
+  .login-screen{flex-direction:column}
+  .login-aside{padding:28px 20px;flex:none}
+  .login-main{padding:20px 14px}
+  .mobile-menu-btn{display:inline-flex}
+  .sidebar{
+    position:fixed;top:0;left:0;bottom:0;width:255px;height:100vh;z-index:50;
+    transform:translateX(-105%);box-shadow:var(--shadow-lg)
+  }
+  .sidebar.mobile-open{transform:translateX(0)}
+  .sidebar-backdrop.open{display:block}
+  .topbar{padding:10px 12px;gap:8px}
+  .topbar-title p{display:none}
+  .topbar-actions{width:100%;margin-left:0;justify-content:space-between}
+  .search-wrap{flex:1}
+  .search-wrap input{width:100%}
+  .content{padding:12px}
+  .grid.g-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid.g-3,.grid.g-2,.grid.g-cal{grid-template-columns:1fr}
+  .chat-shell{grid-template-columns:1fr;height:auto}
+  .chat-sidebar{max-height:220px}
+  .chat-main{height:65vh;min-height:420px}
+  .form-grid{grid-template-columns:1fr}
   .drawer{width:100vw}
+}
+@media(max-width:520px){
+  .grid.g-4{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -343,7 +385,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
         <li><span>🧩</span> Color-coded stages, direct calls &amp; sales pipeline</li>
         <li><span>⏰</span> Follow-up reminders &amp; clean calendar</li>
         <li><span>👥</span> Team Email/Link Invites &amp; HRMS</li>
-        <li><span>💬</span> Real-time Team Chat &amp; File Sharing</li>
+        <li><span>💬</span> Team Chat, Individual Messaging &amp; File Sharing</li>
       </ul>
     </div>
   </div>
@@ -393,6 +435,8 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
   </div>
 </div>
 
+<div id="sidebarBackdrop" class="sidebar-backdrop" onclick="UI.toggleMobileSidebar(false)"></div>
+
 <div id="app" class="app hidden">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -425,7 +469,7 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
       </button>
       <button class="nav-item" data-route="messages" onclick="UI.navigate('messages')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M21 14.5a2.5 2.5 0 0 1-2.5 2.5H8l-5 4V5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5z"/></svg>
-        <span>Team Chat</span>
+        <span>Messages</span>
       </button>
       <div class="nav-label">Insights</div>
       <button class="nav-item" data-route="reports" onclick="UI.navigate('reports')">
@@ -455,6 +499,9 @@ table.tbl tbody tr.row-selected{background:var(--primary-soft)}
 
   <div class="main">
     <header class="topbar">
+      <button class="icon-btn mobile-menu-btn" onclick="UI.toggleMobileSidebar()" title="Open Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
       <div class="topbar-title">
         <h1 id="pageTitle">Dashboard</h1>
         <p id="pageSubtitle" class="muted sm">Double-click any Company Name to open Notepad Drawer with notes history, address &amp; website</p>
@@ -586,6 +633,9 @@ const UI = {
   currentWorkbook: null,
   importState: { source: 'Excel', sheetNames: [], sheetsData: {}, selectedSheet: '__ALL__', headers: [], rawRows: [], mapping: {} },
   hasShownStartupFollowupAlert: false,
+  activeChatMode: 'team', // 'team' or 'direct'
+  activeDirectMemberName: '',
+  activeDirectMemberEmail: '',
 
   esc(s) {
     const d = document.createElement('div');
@@ -603,6 +653,15 @@ const UI = {
     el.classList.remove('hidden');
     clearTimeout(this._saveTimer);
     this._saveTimer = setTimeout(() => el.classList.add('hidden'), 1800);
+  },
+
+  toggleMobileSidebar(forceState) {
+    const sb = document.getElementById('sidebar');
+    const bd = document.getElementById('sidebarBackdrop');
+    if (!sb || !bd) return;
+    const isOpen = forceState !== undefined ? forceState : !sb.classList.contains('mobile-open');
+    sb.classList.toggle('mobile-open', isOpen);
+    bd.classList.toggle('open', isOpen);
   },
 
   getBestShareBaseUrl() {
@@ -836,6 +895,7 @@ const UI = {
 
   navigate(route) {
     this.route = route;
+    this.toggleMobileSidebar(false);
     document.getElementById('notifPop')?.classList.add('hidden');
     document.querySelectorAll('#nav .nav-item').forEach(b => b.classList.toggle('active', b.dataset.route === route));
     const meta = {
@@ -843,7 +903,7 @@ const UI = {
       leads: ['Leads', 'Newly imported leads always appear at the TOP. Double-click any lead to open the Notepad Drawer.'],
       pipeline: ['Pipeline', 'Drag and drop deals across stages: New, Contacted, Qualified, Proposal Sent, Negotiation, Won, Lost'],
       calendar: ['Calendar & Follow-up Schedule', 'Clean interactive calendar with automatic past follow-up management'],
-      messages: ['Team Chat & Document Sharing', 'Chat with team members and securely share documents & files in real time'],
+      messages: ['Messages', 'Team Group Chat, 1-on-1 Individual Member Chat & Document/File Sharing'],
       reports: ['Reports', 'Advanced stage conversion analytics & team performance breakdown'],
       team: ['Team & HRMS', 'Invite team members via Email/Magic Link, assign leads & view full HRMS profiles'],
       settings: ['Settings & Sharing', 'Configure Gantavya CRM sharing URL, Email SMTP & 1-Year subscription billing']
@@ -1060,7 +1120,7 @@ const UI = {
 
       <div class="card">
         <div class="toolbar">
-          <input type="search" placeholder="Search company, contact no, notes..." value="${this.esc(f.q)}" oninput="UI.leadFilter.q=this.value;UI.leadFilter.page=1;UI.renderLeads()" style="min-width:230px" />
+          <input type="search" placeholder="Search company, contact no, notes..." value="${this.esc(f.q)}" oninput="UI.leadFilter.q=this.value;UI.leadFilter.page=1;UI.renderLeads()" style="min-width:200px;flex:1" />
           <select onchange="UI.leadFilter.owner=this.value;UI.leadFilter.page=1;UI.renderLeads()">
             <option value="">👥 All Team Members</option>
             ${teamOpts.map(name => `<option value="${this.esc(name)}" ${f.owner === name ? 'selected' : ''}>Working: ${this.esc(name)}</option>`).join('')}
@@ -1521,6 +1581,14 @@ const UI = {
     }
   },
 
+  /* ==================== 5. MESSAGES VIEW (TEAM GROUP CHAT + INDIVIDUAL 1-ON-1 CHAT + FILE SHARING) ==================== */
+  selectChatTarget(mode, memberName = '', memberEmail = '') {
+    this.activeChatMode = mode;
+    this.activeDirectMemberName = memberName;
+    this.activeDirectMemberEmail = memberEmail;
+    this.renderMessages();
+  },
+
   async renderMessages() {
     let messagesList = [];
     try {
@@ -1530,48 +1598,119 @@ const UI = {
       messagesList = [];
     }
 
-    const currentUserName = this.workspace?.user?.name || 'Admin';
+    const currentUserName = (this.workspace?.user?.name || 'Admin').trim();
+    const currentUserEmail = (this.workspace?.user?.email || currentUserName).toLowerCase().trim();
+    const teamList = (this.workspace?.teamList || []);
+
+    const visibleMessages = messagesList.filter(m => {
+      if (this.activeChatMode === 'team') {
+        return !m.channel || m.channel === 'Team Chat';
+      } else {
+        if (m.channel !== 'Direct') return false;
+        const targetName = this.activeDirectMemberName.toLowerCase().trim();
+        const targetEmail = this.activeDirectMemberEmail.toLowerCase().trim();
+        const sName = String(m.sender_name || '').toLowerCase().trim();
+        const sEmail = String(m.sender_email || '').toLowerCase().trim();
+        const rName = String(m.recipient || '').toLowerCase().trim();
+        const rEmail = String(m.receiver_email || '').toLowerCase().trim();
+
+        const sentByMeToTarget =
+          (sName === currentUserName.toLowerCase() || sEmail === currentUserEmail) &&
+          (rName === targetName || (targetEmail && rEmail === targetEmail));
+
+        const sentByTargetToMe =
+          (sName === targetName || (targetEmail && sEmail === targetEmail)) &&
+          (rName === currentUserName.toLowerCase() || rEmail === currentUserEmail);
+
+        return sentByMeToTarget || sentByTargetToMe;
+      }
+    });
+
     const root = document.getElementById('viewRoot');
-
     root.innerHTML = `
-      <div class="card" style="display:flex;flex-direction:column;height:calc(100vh - 130px);max-height:750px">
-        <div class="card-head" style="background:var(--panel-2);display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <h3>💬 Real-Time Team Chat &amp; Document Sharing</h3>
-            <p class="muted sm">Chat with all team members instantly and share files or documents securely.</p>
+      <div class="chat-shell">
+        <div class="card chat-sidebar">
+          <div class="card-head" style="background:var(--panel-2)">
+            <h3>💬 Conversations</h3>
           </div>
-          <span class="stage-badge stage-green">🟢 Live Sync Active</span>
-        </div>
-
-        <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#f8fafc" id="chatMessagesBox">
-          ${messagesList.map(m => {
-            const isMe = String(m.sender_name || '').toLowerCase() === String(currentUserName).toLowerCase();
-            const timeStr = new Date(m.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            return `
-              <div style="display:flex;flex-direction:column;align-items:${isMe ? 'flex-end' : 'flex-start'};width:100%">
-                <div style="max-width:75%;background:${isMe ? 'var(--primary)' : '#fff'};color:${isMe ? '#fff' : 'var(--text)'};border:1px solid ${isMe ? 'var(--primary)' : 'var(--border)'};padding:10px 14px;border-radius:12px;box-shadow:var(--shadow-sm)">
-                  <div style="font-size:11px;font-weight:700;color:${isMe ? 'rgba(255,255,255,.85)' : 'var(--primary)'};margin-bottom:3px">${this.esc(m.sender_name || 'Team Member')}</div>
-                  <div style="font-size:13.5px;word-break:break-word;white-space:pre-wrap">${this.esc(m.body)}</div>
-                  ${m.file_url ? `
-                    <div style="margin-top:8px;padding:8px 10px;background:${isMe ? 'rgba(255,255,255,.15)' : 'var(--panel-2)'};border-radius:8px;border:1px solid ${isMe ? 'rgba(255,255,255,.3)' : 'var(--border)'};display:flex;align-items:center;justify-content:space-between;gap:10px">
-                      <span style="font-size:12px;font-weight:600">📎 ${this.esc(m.file_name || 'Attachment')}</span>
-                      <a href="${m.file_url}" target="_blank" class="btn btn-sm" style="background:#fff;color:var(--text);padding:3px 8px;font-size:11px;text-decoration:none">Download / View ↗</a>
-                    </div>
-                  ` : ''}
-                  <div style="font-size:10px;text-align:right;color:${isMe ? 'rgba(255,255,255,.7)' : 'var(--muted)'};margin-top:4px">${timeStr}</div>
-                </div>
+          <div class="chat-member-list">
+            <div class="nav-label" style="padding:4px 6px">Group Channel</div>
+            <button class="chat-contact-btn ${this.activeChatMode === 'team' ? 'active' : ''}" onclick="UI.selectChatTarget('team')">
+              <div class="avatar" style="background:var(--primary)">📢</div>
+              <div style="min-width:0;flex:1">
+                <div style="font-weight:700;font-size:13px">General Team Chat</div>
+                <div class="muted sm" style="font-size:11px">All workspace members</div>
               </div>
-            `;
-          }).join('') || '<div style="text-align:center;padding:40px;color:var(--muted)">No team chat messages yet. Start chatting below!</div>'}
+            </button>
+
+            <div class="nav-label" style="padding:10px 6px 4px">Direct / Individual Chat</div>
+            ${teamList.map(m => {
+              const mEmail = (m.email || m.login_username || m.full_name).toLowerCase().trim();
+              const isSelected = this.activeChatMode === 'direct' && this.activeDirectMemberName === m.full_name;
+              const isSelf = m.full_name.toLowerCase().trim() === currentUserName.toLowerCase();
+              return `
+                <button class="chat-contact-btn ${isSelected ? 'active' : ''}" onclick="UI.selectChatTarget('direct', '${this.esc(m.full_name)}', '${this.esc(mEmail)}')">
+                  <div class="avatar">${this.initials(m.full_name)}</div>
+                  <div style="min-width:0;flex:1">
+                    <div style="font-weight:700;font-size:12.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                      ${this.esc(m.full_name)} ${isSelf ? '(You)' : ''}
+                    </div>
+                    <div class="muted sm" style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${this.esc(m.designation || 'Team Member')}</div>
+                  </div>
+                </button>
+              `;
+            }).join('') || '<div class="muted sm" style="padding:8px">No team members found.</div>'}
+          </div>
         </div>
 
-        <div style="padding:12px 16px;background:#fff;border-top:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <label class="btn btn-ghost" style="cursor:pointer;padding:8px 12px" title="Attach Document or File">
-            📎 <input type="file" id="chatFileInput" style="display:none" onchange="UI.previewSelectedChatFile(this)" />
-          </label>
-          <div id="chatFilePreviewName" class="muted sm" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
-          <input id="chatMessageInput" type="text" placeholder="Type a message to the team..." style="flex:1;padding:10px 14px;min-width:180px" onkeydown="if(event.key==='Enter')UI.sendTeamChatMessage()" />
-          <button class="btn btn-primary" onclick="UI.sendTeamChatMessage()">Send 🚀</button>
+        <div class="card chat-main">
+          <div class="card-head" style="background:var(--panel-2);display:flex;justify-content:space-between;align-items:center">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="avatar" style="background:${this.activeChatMode === 'team' ? 'var(--primary)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)'}">
+                ${this.activeChatMode === 'team' ? '📢' : this.initials(this.activeDirectMemberName)}
+              </div>
+              <div>
+                <h3>${this.activeChatMode === 'team' ? 'General Team Chat (All Members)' : `Direct Chat with ${this.esc(this.activeDirectMemberName)}`}</h3>
+                <p class="muted sm">${this.activeChatMode === 'team' ? 'Messages & files shared here are visible to everyone in the team' : `Private 1-on-1 conversation & document sharing with ${this.esc(this.activeDirectMemberName)}`}</p>
+              </div>
+            </div>
+            <span class="stage-badge stage-green">🟢 Live Sync</span>
+          </div>
+
+          <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#f8fafc" id="chatMessagesBox">
+            ${visibleMessages.map(m => {
+              const isMe = String(m.sender_name || '').toLowerCase().trim() === currentUserName.toLowerCase();
+              const timeStr = new Date(m.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              return `
+                <div style="display:flex;flex-direction:column;align-items:${isMe ? 'flex-end' : 'flex-start'};width:100%">
+                  <div style="max-width:min(78%,520px);background:${isMe ? 'var(--primary)' : '#fff'};color:${isMe ? '#fff' : 'var(--text)'};border:1px solid ${isMe ? 'var(--primary)' : 'var(--border)'};padding:10px 14px;border-radius:12px;box-shadow:var(--shadow-sm)">
+                    <div style="font-size:11px;font-weight:700;color:${isMe ? 'rgba(255,255,255,.85)' : 'var(--primary)'};margin-bottom:3px">
+                      ${this.esc(m.sender_name || 'Team Member')}
+                      ${m.channel === 'Direct' ? `<span style="opacity:.75;font-weight:500"> → ${this.esc(m.recipient)}</span>` : ''}
+                    </div>
+                    <div style="font-size:13.5px;word-break:break-word;white-space:pre-wrap">${this.esc(m.body)}</div>
+                    ${m.file_url ? `
+                      <div style="margin-top:8px;padding:8px 10px;background:${isMe ? 'rgba(255,255,255,.15)' : 'var(--panel-2)'};border-radius:8px;border:1px solid ${isMe ? 'rgba(255,255,255,.3)' : 'var(--border)'};display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                        <span style="font-size:12px;font-weight:600;word-break:break-all">📎 ${this.esc(m.file_name || 'Document')}</span>
+                        <a href="${m.file_url}" target="_blank" download="${this.esc(m.file_name || 'file')}" class="btn btn-sm" style="background:#fff;color:var(--text);padding:3px 9px;font-size:11px;text-decoration:none">Download / View ↗</a>
+                      </div>
+                    ` : ''}
+                    <div style="font-size:10px;text-align:right;color:${isMe ? 'rgba(255,255,255,.7)' : 'var(--muted)'};margin-top:4px">${timeStr}</div>
+                  </div>
+                </div>
+              `;
+            }).join('') || `<div style="text-align:center;padding:45px 20px;color:var(--muted)">No messages in this conversation yet. Type a message or attach a document (📎) below!</div>`}
+          </div>
+
+          <div style="padding:12px 16px;background:#fff;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <label class="btn" style="cursor:pointer;padding:8px 12px" title="Attach Document, Image or Excel File">
+              📎 Attach File
+              <input type="file" id="chatFileInput" style="display:none" onchange="UI.previewSelectedChatFile(this)" />
+            </label>
+            <div id="chatFilePreviewName" class="stage-badge stage-blue hidden" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+            <input id="chatMessageInput" type="text" placeholder="${this.activeChatMode === 'team' ? 'Write a message to General Team Chat...' : `Message ${this.esc(this.activeDirectMemberName)}...`}" style="flex:1;padding:10px 14px;min-width:160px" onkeydown="if(event.key==='Enter')UI.sendTeamChatMessage()" />
+            <button class="btn btn-primary" id="btnSendChat" onclick="UI.sendTeamChatMessage()">Send 🚀</button>
+          </div>
         </div>
       </div>
     `;
@@ -1583,23 +1722,42 @@ const UI = {
   previewSelectedChatFile(input) {
     const file = input.files[0];
     const prev = document.getElementById('chatFilePreviewName');
-    if (prev && file) {
+    if (!prev) return;
+    if (file) {
       prev.textContent = `📎 ${file.name}`;
+      prev.classList.remove('hidden');
+    } else {
+      prev.textContent = '';
+      prev.classList.add('hidden');
     }
   },
 
   async sendTeamChatMessage() {
     const input = document.getElementById('chatMessageInput');
     const fileInput = document.getElementById('chatFileInput');
-    const body = input.value.trim();
+    const btn = document.getElementById('btnSendChat');
+    const body = (input?.value || '').trim();
     const file = fileInput?.files[0];
 
     if (!body && !file) return;
 
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+    }
+
     const fd = new FormData();
-    if (body) fd.append('body', body);
+    fd.append('body', body || (file ? `Shared file: ${file.name}` : ''));
     if (file) fd.append('file', file);
-    fd.append('recipient', 'General Team');
+
+    if (this.activeChatMode === 'direct' && this.activeDirectMemberName) {
+      fd.append('channel', 'Direct');
+      fd.append('recipient', this.activeDirectMemberName);
+      fd.append('receiver_email', this.activeDirectMemberEmail);
+    } else {
+      fd.append('channel', 'Team Chat');
+      fd.append('recipient', 'General Team');
+    }
 
     try {
       const res = await fetch('/api/messages', {
@@ -1607,14 +1765,24 @@ const UI = {
         headers: { Authorization: `Bearer ${API.token}` },
         body: fd
       });
-      if (!res.ok) throw new Error('Failed to send message');
-      input.value = '';
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to send message');
+      if (input) input.value = '';
       if (fileInput) fileInput.value = '';
       const prev = document.getElementById('chatFilePreviewName');
-      if (prev) prev.textContent = '';
-      this.renderMessages();
+      if (prev) {
+        prev.textContent = '';
+        prev.classList.add('hidden');
+      }
+      this.flashSaved('✓ Message Sent');
+      await this.renderMessages();
     } catch (e) {
       alert('Error sending message: ' + e.message);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Send 🚀';
+      }
     }
   },
 
@@ -1705,7 +1873,7 @@ const UI = {
           <b style="color:var(--primary-600)">🌐 Team Server Access Link: <code class="mono">${this.esc(shareUrl)}</code></b>
           <div class="muted sm">All team members share the same live leads &amp; updates automatically in real time.</div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-sm" onclick="UI.openShareCrmModal()">⚙️ Configure Public Internet Link / SMTP Email</button>
           <button class="btn btn-sm btn-primary" onclick="UI.openTeamModal()">➕ Invite Team Member (Create Login &amp; Send Email)</button>
         </div>
@@ -1756,8 +1924,9 @@ const UI = {
                   <td>
                     <span class="stage-badge" style="background:var(--panel-3);color:var(--text-2)">${(m.previous_companies || []).length} Past Cos • ${(m.documents || []).length} Docs</span>
                   </td>
-                  <td style="text-align:right" onclick="event.stopPropagation()">
-                    <button class="btn btn-sm" onclick="UI.openTeamMemberDrawer('${m.id}')">Open HRMS &amp; Leads</button>
+                  <td style="text-align:right;white-space:nowrap" onclick="event.stopPropagation()">
+                    <button class="btn btn-sm" onclick="UI.selectChatTarget('direct', '${this.esc(m.full_name)}', '${this.esc((m.email || m.login_username || '').toLowerCase())}');UI.navigate('messages')">💬 Chat</button>
+                    <button class="btn btn-sm" onclick="UI.openTeamMemberDrawer('${m.id}')">HRMS &amp; Leads</button>
                   </td>
                 </tr>
               `).join('')}
@@ -2271,13 +2440,13 @@ const UI = {
           </div>
 
           <div id="analyzerWorkspace" class="hidden">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
               <h4>Auto/Manual Column Classification (All extra columns are saved inside the Notepad Drawer!)</h4>
               <span class="stage-badge stage-blue" id="analyzedBadge">0 rows</span>
             </div>
             <div id="columnMapGrid" class="map-grid"></div>
 
-            <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 8px;flex-wrap:wrap;gap:8px">
               <h4>📊 Live Table Preview (Imported Leads Will Appear at the Very TOP of Your List)</h4>
               <button class="btn btn-success" id="btnCommitImport" onclick="UI.commitMappedImport()">✅ Confirm &amp; Import Leads to Top</button>
             </div>
@@ -2702,7 +2871,7 @@ window.addEventListener('DOMContentLoaded', () => UI.init());
         await UI.refreshWorkspace();
         if (document.querySelector('.drawer-root.open')) return;
         if (UI.route === 'dashboard') UI.renderDashboard();
-        else if (UI.route === 'leads')UI.renderLeads();
+        else if (UI.route === 'leads') UI.renderLeads();
         else if (UI.route === 'pipeline') UI.renderPipeline();
         else if (UI.route === 'calendar') UI.renderCalendar();
         else if (UI.route === 'team') UI.renderTeam();
