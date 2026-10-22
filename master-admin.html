@@ -2,150 +2,551 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NovaCRM — Master SaaS Admin Console (Restricted)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Gantavya CRM — Super Admin & Client Provisioning Portal</title>
 <style>
-  :root{--bg:#0f172a;--panel:#1e293b;--border:#334155;--text:#f8fafc;--muted:#94a3b8;--primary:#6366f1;--success:#10b981;--danger:#ef4444}
-  *{box-sizing:border-box}
-  body{margin:0;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;padding:28px}
-  .wrap{max-width:1200px;margin:0 auto}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:20px}
-  h1,h2,h3{margin:0 0 10px}
-  input,select{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:#0f172a;color:#fff;margin-top:5px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .btn{padding:10px 16px;border-radius:8px;border:none;font-weight:600;cursor:pointer;background:var(--primary);color:#fff}
-  .btn-success{background:var(--success)}
-  .btn-danger{background:var(--danger)}
-  table{width:100%;border-collapse:collapse;margin-top:14px}
-  th,td{padding:12px;border-bottom:1px solid var(--border);text-align:left}
-  .pill{padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600;background:#312e81;color:#c7d2fe}
+:root{
+  --bg:#f4f6fb;
+  --panel:#ffffff;
+  --panel-2:#f8fafc;
+  --panel-3:#f1f5f9;
+  --border:#e5e9f2;
+  --border-2:#d8dfec;
+  --text:#0f172a;
+  --text-2:#334155;
+  --muted:#64748b;
+  --muted-2:#94a3b8;
+  --primary:#4f46e5;
+  --primary-600:#4338ca;
+  --primary-soft:#eef2ff;
+  --primary-soft-2:#e0e7ff;
+  --success:#0d9488;
+  --success-soft:#ccfbf1;
+  --warn:#d97706;
+  --warn-soft:#fef3c7;
+  --danger:#dc2626;
+  --danger-soft:#fee2e2;
+  --info:#0284c7;
+  --info-soft:#e0f2fe;
+  --radius:14px;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.04);
+  --shadow:0 4px 20px -6px rgba(16,24,40,.12);
+  --shadow-lg:0 24px 60px -20px rgba(16,24,40,.28);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:var(--sans);color:var(--text);background:var(--bg);font-size:13.5px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-.015em}
+p{margin:0}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+.hidden{display:none !important}
+.muted{color:var(--muted)}
+.sm{font-size:11.8px}
+.mono{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:1px solid var(--border-2);background:#fff;color:var(--text-2);
+  padding:8px 14px;border-radius:9px;font-weight:600;font-size:12.8px;cursor:pointer;
+  transition:.15s ease;white-space:nowrap;box-shadow:var(--shadow-sm);text-decoration:none
+}
+.btn:hover{background:var(--panel-2);border-color:#c6cfe0}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 6px 16px -8px rgba(79,70,229,.7)}
+.btn-primary:hover{background:var(--primary-600);border-color:var(--primary-600)}
+.btn-success{background:var(--success);border-color:var(--success);color:#fff}
+.btn-warn{background:var(--warn);border-color:var(--warn);color:#fff}
+.btn-danger{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn-sm{padding:5px 10px;font-size:11.5px;border-radius:7px}
+.btn-block{width:100%}
+
+input,select{
+  width:100%;padding:9px 12px;border:1px solid var(--border-2);border-radius:9px;
+  background:#fff;outline:none;transition:.15s
+}
+input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+
+/* Top Header with Rivo Mascot touching G */
+.admin-header{
+  background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:30;
+  padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  box-shadow:var(--shadow-sm)
+}
+.brand-cluster{display:flex;align-items:flex-end;gap:0}
+.rivo-wrap{position:relative;display:flex;align-items:flex-end;margin-right:-16px;z-index:2}
+.rivo-img{
+  width:64px;height:64px;object-fit:contain;display:block;
+  filter:drop-shadow(2px 5px 8px rgba(15,23,42,.22));transform:translateY(3px);transition:.2s
+}
+.brand-cluster:hover .rivo-img{transform:translateY(0) scale(1.05)}
+.logo-fallback{
+  width:42px;height:42px;border-radius:11px;background:var(--primary);color:#fff;
+  display:none;align-items:center;justify-content:center;font-weight:900;font-size:20px;margin-right:10px
+}
+.brand-titles{padding-bottom:4px;z-index:1}
+.brand-main{font-weight:900;font-size:19px;letter-spacing:-.035em;color:var(--text);line-height:1.05;display:flex;align-items:baseline}
+.brand-main .g-char{font-size:26px;font-weight:950;color:var(--primary);margin-right:1px}
+.brand-badge{
+  margin-left:8px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:2px 8px;border-radius:20px
+}
+.brand-sub{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+
+/* Container & Grid */
+.container{max-width:1320px;margin:0 auto;padding:22px 24px 48px}
+.grid{display:grid;gap:16px}
+.g-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g-main{grid-template-columns:380px 1fr;align-items:start}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.card-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.card-pad{padding:18px}
+
+/* KPI Cards */
+.kpi{padding:16px 18px;display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden}
+.kpi-top{display:flex;align-items:center;justify-content:space-between}
+.kpi-label{font-size:12px;font-weight:650;color:var(--muted)}
+.kpi-ico{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.kpi-val{font-size:24px;font-weight:800;letter-spacing:-.02em}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.b-green{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+.b-yellow{background:#fef3c7;color:#b45309;border:1px solid #fde68a}
+.b-red{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca}
+.b-blue{background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd}
+
+/* Table */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.tbl{width:100%;border-collapse:collapse;font-size:12.8px}
+table.tbl th{
+  text-align:left;font-size:10.8px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  font-weight:700;padding:10px 12px;background:var(--panel-2);border-bottom:1px solid var(--border);white-space:nowrap
+}
+table.tbl td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+table.tbl tbody tr:hover{background:#f8faff}
+
+/* Secret Gate Lock Screen */
+.lock-overlay{
+  position:fixed;inset:0;z-index:80;background:linear-gradient(145deg,#1e1b4b 0%,#312e81 50%,#4c1d95 100%);
+  display:flex;align-items:center;justify-content:center;padding:20px
+}
+.lock-card{
+  width:100%;max-width:420px;background:#fff;border-radius:18px;padding:28px;
+  box-shadow:var(--shadow-lg);text-align:center
+}
+
+.toast{
+  position:fixed;bottom:20px;right:20px;z-index:100;background:#0f172a;color:#fff;
+  padding:9px 16px;border-radius:24px;font-size:12.5px;font-weight:600;box-shadow:var(--shadow-lg)
+}
+
+@media(max-width:980px){
+  .g-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g-main{grid-template-columns:1fr}
+  .admin-header{padding:10px 14px}
+  .container{padding:14px}
+}
+@media(max-width:520px){
+  .g-4{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="card" style="display:flex;justify-content:space-between;align-items:center">
-    <div>
-      <h1>👑 NovaCRM Master SaaS Admin Portal</h1>
-      <p style="color:var(--muted);margin:0">Restricted Owner Console — Provision Client Login IDs, Passwords & Timed Subscriptions</p>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center">
-      <input id="masterKey" type="password" placeholder="Enter MASTER_ADMIN_SECRET" style="width:260px;margin:0" value="NOVA-MASTER-KEY-9988" />
-      <button class="btn" onclick="loadClients()">Unlock & Load Clients</button>
-    </div>
-  </div>
 
-  <!-- Provision New Client Login ID & Password -->
-  <div class="card">
-    <h3>➕ Create Client Workspace, Login ID & Password</h3>
-    <form onsubmit="provisionClient(event)" class="grid" style="margin-top:12px">
-      <label>Company Name *<input id="c_comp" required placeholder="e.g. Apex Industries Ltd" /></label>
-      <label>Client Contact Person *<input id="c_person" required placeholder="e.g. Rajesh Singh" /></label>
-      <label>Client Email *<input id="c_email" type="email" required placeholder="rajesh@apex.com" /></label>
-      <label>Client Phone<input id="c_phone" placeholder="+91 98..." /></label>
-      <label>Assign Login User ID *<input id="c_user" required placeholder="e.g. apex_admin" /></label>
-      <label>Assign Login Password *<input id="c_pass" type="text" required placeholder="Strong password" /></label>
-      <label>Access Period (Days) *
-        <select id="c_days">
-          <option value="7">7 Days (Free Trial Mode)</option>
-          <option value="15">15 Days (Custom Access)</option>
-          <option value="30">30 Days (1 Month Access)</option>
-          <option value="90">90 Days (Quarterly Access)</option>
-          <option value="365">365 Days (1-Year Paid Subscription)</option>
-        </select>
-      </label>
-      <label>Plan Tier
-        <select id="c_plan">
-          <option value="trial_7d">7-Day Free Trial</option>
-          <option value="custom_access">Custom Timed Access</option>
-          <option value="annual_1yr">1-Year Paid Subscription</option>
-        </select>
-      </label>
-      <div style="display:flex;align-items:flex-end">
-        <button type="submit" class="btn btn-success" style="width:100%">Create Client ID & Grant Access</button>
-      </div>
+<!-- ==================== MASTER SECRET LOCK SCREEN ==================== -->
+<div id="lockScreen" class="lock-overlay">
+  <div class="lock-card">
+    <div style="display:flex;align-items:flex-end;justify-content:center;margin-bottom:8px">
+      <img src="/uploads/rivo-character.png" alt="Rivo" style="width:72px;height:72px;object-fit:contain;margin-right:-14px;z-index:2;filter:drop-shadow(2px 5px 8px rgba(0,0,0,.22))" onerror="this.style.display='none'" />
+      <h2 style="font-size:24px;font-weight:900"><span style="color:var(--primary);font-size:31px;font-weight:950">G</span>antavya CRM</h2>
+    </div>
+    <span class="brand-badge" style="margin:0 auto 12px;display:inline-block">🔒 Super Admin Control Center</span>
+    <p class="muted sm" style="margin-bottom:18px">Enter your Master Admin Secret Key to manage client workspaces, subscriptions &amp; database backups.</p>
+    <form onsubmit="AdminApp.unlockWithKey(event)">
+      <input id="masterKeyInput" type="password" placeholder="Enter Master Secret Key..." required style="text-align:center;font-weight:700;letter-spacing:.05em;margin-bottom:12px" />
+      <button type="submit" class="btn btn-primary btn-block" style="padding:10px">🔓 Unlock Master Admin Portal</button>
     </form>
-  </div>
-
-  <!-- Active Client Workspaces Table -->
-  <div class="card">
-    <h3>🏢 Provisioned Client Workspaces</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Company & Contact</th>
-          <th>Assigned Login ID</th>
-          <th>Plan</th>
-          <th>Access Expires</th>
-          <th>DB Usage (Leads / Emp)</th>
-          <th>Extend / Modify Access</th>
-        </tr>
-      </thead>
-      <tbody id="clientRows">
-        <tr><td colspan="6" style="color:var(--muted)">Click "Unlock & Load Clients" above.</td></tr>
-      </tbody>
-    </table>
+    <div style="margin-top:14px">
+      <a href="/" class="muted sm" style="text-decoration:none;font-weight:600">← Back to Gantavya CRM Dashboard</a>
+    </div>
   </div>
 </div>
 
+<!-- ==================== MAIN SUPER ADMIN PORTAL ==================== -->
+<header class="admin-header">
+  <div class="brand-cluster">
+    <div class="rivo-wrap">
+      <img src="/uploads/rivo-character.png" alt="Rivo" class="rivo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+      <div class="logo-fallback">G</div>
+    </div>
+    <div class="brand-titles">
+      <div class="brand-main">
+        <span class="g-char">G</span>antavya CRM
+        <span class="brand-badge">Super Admin</span>
+      </div>
+      <div class="brand-sub">Enterprise Client Provisioning, Licensing &amp; Workspace Control</div>
+    </div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-sm" onclick="AdminApp.loadTenants()">🔄 Refresh Data</button>
+    <button class="btn btn-sm btn-success" onclick="AdminApp.downloadDatabaseBackup()">💾 Download SQLite DB Backup</button>
+    <a href="/" class="btn btn-sm btn-primary">🚀 Open CRM Dashboard →</a>
+    <button class="btn btn-sm btn-danger" onclick="AdminApp.lockPortal()">🔒 Lock</button>
+  </div>
+</header>
+
+<main class="container">
+  <!-- KPI Row -->
+  <div class="grid g-4" style="margin-bottom:18px">
+    <div class="card kpi">
+      <div class="kpi-top"><span class="kpi-label">Total Client Workspaces</span><div class="kpi-ico" style="background:var(--primary-soft);color:var(--primary)">🏢</div></div>
+      <div class="kpi-val" id="kpiTenants">0</div>
+      <div class="muted sm">Provisioned organizations</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-top"><span class="kpi-label">Active Subscriptions</span><div class="kpi-ico" style="background:var(--success-soft);color:var(--success)">✅</div></div>
+      <div class="kpi-val" id="kpiActive">0</div>
+      <div class="muted sm">Valid &amp; running access</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-top"><span class="kpi-label">Total Leads Across CRM</span><div class="kpi-ico" style="background:var(--info-soft);color:var(--info)">🎯</div></div>
+      <div class="kpi-val" id="kpiLeads">0</div>
+      <div class="muted sm">Combined workspace leads</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-top"><span class="kpi-label">Total Team / HRMS Users</span><div class="kpi-ico" style="background:var(--warn-soft);color:var(--warn)">👥</div></div>
+      <div class="kpi-val" id="kpiEmps">0</div>
+      <div class="muted sm">Active employees &amp; agents</div>
+    </div>
+  </div>
+
+  <!-- Main 2-Column Section -->
+  <div class="grid g-main">
+    <!-- Left Column: Provision New Client / Admin Account -->
+    <div class="card">
+      <div class="card-head" style="background:var(--panel-2)">
+        <h3>➕ Provision New Client / Admin</h3>
+        <span class="badge b-blue">Instant Setup</span>
+      </div>
+      <form class="card-pad" onsubmit="AdminApp.provisionClient(event)">
+        <div style="display:grid;gap:11px">
+          <label>
+            <span class="sm" style="font-weight:650;display:block;margin-bottom:4px">Company / Workspace Name *</span>
+            <input id="p_comp" required placeholder="e.g. Gantavya Enterprise" />
+          </label>
+          <label>
+            <span class="sm" style="font-weight:650;display:block;margin-bottom:4px">Admin Full Name *</span>
+            <input id="p_name" required placeholder="e.g. Rishi Nagi" />
+          </label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label>
+              <span class="sm" style="font-weight:650;display:block;margin-bottom:4px">Work Email *</span>
+              <input id="p_email" type="email" required placeholder="admin@company.com" />
+            </label>
+            <label>
+              <span class="sm" style="font-weight:650;display:block;margin-bottom:4px">WhatsApp / Phone</span>
+              <input id="p_phone" placeholder="+91 98..." />
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label>
+              <span class="sm" style="font-weight:650;display:block;margin-bottom:4px">Assign Login ID *</span>
+              <input id="p_user" required placeholder="e.g. rishi_admin" />
+            </label>
+            <label>
+              <span class="sm" style="font-weight:650;display:block;margin-bottom:4px">Assign Password *</span>
+              <input id="p_pass" required value="admin123" />
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <label>
+              <span class="sm" style="font-weight:650;display:block;margin-bottom:4px">Subscription Plan</span>
+              <select id="p_plan" onchange="document.getElementById('p_days').value = this.value === 'annual_1yr' ? 365 : (this.value === 'trial_7d' ? 7 : 30)">
+                <option value="annual_1yr">1-Year Enterprise (365d)</option>
+                <option value="monthly_30d">Monthly Plan (30d)</option>
+                <option value="trial_7d">7-Day Free Trial (7d)</option>
+              </select>
+            </label>
+            <label>
+              <span class="sm" style="font-weight:650;display:block;margin-bottom:4px">Access Validity (Days) *</span>
+              <input id="p_days" type="number" required value="365" min="1" />
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" style="margin-top:6px;padding:10px">🚀 Create &amp; Activate Access</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Right Column: Client Workspaces & License Control Table -->
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h3>🏢 Workspaces, Licenses &amp; Access Control</h3>
+          <p class="muted sm">Extend validity days, suspend/activate access, or copy 1-click login links</p>
+        </div>
+        <input id="searchTenant" type="search" placeholder="Search company, email, login ID..." style="width:240px" oninput="AdminApp.renderTable()" />
+      </div>
+
+      <div class="table-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Workspace &amp; Contact</th>
+              <th>Login ID</th>
+              <th>Plan &amp; Status</th>
+              <th>Validity / Expiry</th>
+              <th>Usage</th>
+              <th style="text-align:right">Quick License Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tenantsTbody">
+            <tr><td colspan="6" style="text-align:center;padding:30px" class="muted">Loading workspaces...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toastEl" class="toast hidden">✓ Done</div>
+
 <script>
-const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  'x-master-secret': document.getElementById('masterKey').value.trim()
-});
+const AdminApp = {
+  secretKey: localStorage.getItem('gantavya_master_secret') || 'NOVA-MASTER-KEY-9988',
+  tenants: [],
 
-async function loadClients() {
-  const res = await fetch('/api/master/tenants', { headers: getHeaders() });
-  const data = await res.json();
-  if (!res.ok) return alert(data.error || 'Failed to load');
+  esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s ?? '';
+    return d.innerHTML;
+  },
 
-  const tbody = document.getElementById('clientRows');
-  tbody.innerHTML = data.tenants.map(t => {
-    const daysLeft = Math.ceil((new Date(t.access_end) - Date.now()) / 86400000);
-    return `
-      <tr>
-        <td><b>${t.company_name}</b><br><small style="color:var(--muted)">${t.contact_name} (${t.email})</small></td>
-        <td><code>${t.login_id || t.email}</code></td>
-        <td><span class="pill">${t.plan_type}</span></td>
-        <td><b>${new Date(t.access_end).toLocaleDateString()}</b> (${daysLeft}d left)</td>
-        <td>${t.lead_count.toLocaleString()} Leads / ${t.emp_count} Emp</td>
-        <td>
-          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="modifyAccess('${t.id}', 7, 'trial_7d')">+7d</button>
-          <button class="btn" style="padding:5px 10px;font-size:12px" onclick="modifyAccess('${t.id}', 10, 'custom_access')">Set ≤10d</button>
-          <button class="btn btn-success" style="padding:5px 10px;font-size:12px" onclick="modifyAccess('${t.id}', 365, 'annual_1yr')">+1 Year Paid</button>
-        </td>
-      </tr>
-    `;
-  }).join('') || '<tr><td colspan="6">No clients created yet. Use the form above to create your first client login.</td></tr>';
-}
+  toast(msg) {
+    const el = document.getElementById('toastEl');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    clearTimeout(this._t);
+    this._t = setTimeout(() => el.classList.add('hidden'), 2400);
+  },
 
-async function provisionClient(e) {
-  e.preventDefault();
-  const payload = {
-    companyName: document.getElementById('c_comp').value,
-    contactName: document.getElementById('c_person').value,
-    email: document.getElementById('c_email').value,
-    phone: document.getElementById('c_phone').value,
-    username: document.getElementById('c_user').value,
-    password: document.getElementById('c_pass').value,
-    accessDays: Number(document.getElementById('c_days').value),
-    planType: document.getElementById('c_plan').value
-  };
-  const res = await fetch('/api/master/provision-client', { method: 'POST', headers: getHeaders(), body: JSON.stringify(payload) });
-  const data = await res.json();
-  if (!res.ok) return alert(data.error);
-  alert(`Client Created! Login ID: ${data.username}`);
-  e.target.reset();
-  loadClients();
-}
+  async init() {
+    document.getElementById('masterKeyInput').value = this.secretKey;
+    const ok = await this.loadTenants(true);
+    if (ok) {
+      document.getElementById('lockScreen').classList.add('hidden');
+    }
+  },
 
-async function modifyAccess(tenantId, addDays, planType) {
-  const res = await fetch('/api/master/update-access', {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({ tenantId, addDays, planType, status: 'active' })
-  });
-  if (res.ok) loadClients();
-}
+  async unlockWithKey(e) {
+    e.preventDefault();
+    this.secretKey = document.getElementById('masterKeyInput').value.trim();
+    const ok = await this.loadTenants(false);
+    if (ok) {
+      localStorage.setItem('gantavya_master_secret', this.secretKey);
+      document.getElementById('lockScreen').classList.add('hidden');
+      this.toast('🔓 Master Admin Unlocked');
+    }
+  },
+
+  lockPortal() {
+    localStorage.removeItem('gantavya_master_secret');
+    document.getElementById('masterKeyInput').value = '';
+    document.getElementById('lockScreen').classList.remove('hidden');
+  },
+
+  async api(url, opts = {}) {
+    const res = await fetch(url, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-master-secret': this.secretKey,
+        ...(opts.headers || {})
+      }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Unauthorized or server error');
+    return data;
+  },
+
+  async loadTenants(silent = false) {
+    try {
+      const data = await this.api('/api/master/tenants');
+      this.tenants = data.tenants || [];
+      this.updateKPIs();
+      this.renderTable();
+      return true;
+    } catch (e) {
+      if (!silent) alert('Invalid Master Secret Key: ' + e.message);
+      return false;
+    }
+  },
+
+  updateKPIs() {
+    const total = this.tenants.length;
+    const active = this.tenants.filter(t => t.status === 'active' && new Date(t.access_end) > new Date()).length;
+    const leads = this.tenants.reduce((s, t) => s + Number(t.lead_count || 0), 0);
+    const emps = this.tenants.reduce((s, t) => s + Number(t.emp_count || 0), 0);
+
+    document.getElementById('kpiTenants').textContent = total.toLocaleString();
+    document.getElementById('kpiActive').textContent = active.toLocaleString();
+    document.getElementById('kpiLeads').textContent = leads.toLocaleString();
+    document.getElementById('kpiEmps').textContent = emps.toLocaleString();
+  },
+
+  renderTable() {
+    const q = (document.getElementById('searchTenant')?.value || '').toLowerCase().trim();
+    const list = this.tenants.filter(t => {
+      if (!q) return true;
+      return (
+        String(t.company_name || '').toLowerCase().includes(q) ||
+        String(t.contact_name || '').toLowerCase().includes(q) ||
+        String(t.email || '').toLowerCase().includes(q) ||
+        String(t.login_id || '').toLowerCase().includes(q)
+      );
+    });
+
+    const tbody = document.getElementById('tenantsTbody');
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:30px" class="muted">No workspaces found. Provision one on the left!</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = list.map(t => {
+      const msLeft = new Date(t.access_end).getTime() - Date.now();
+      const daysLeft = Math.ceil(msLeft / 86400000);
+      const isExpired = daysLeft <= 0 || t.status !== 'active';
+      const statusBadge = isExpired
+        ? `<span class="badge b-red">⛔ ${t.status === 'suspended' ? 'Suspended' : 'Expired'}</span>`
+        : daysLeft <= 7
+          ? `<span class="badge b-yellow">⏳ ${daysLeft}d left</span>`
+          : `<span class="badge b-green">✅ Active (${daysLeft}d)</span>`;
+
+      const expDate = (t.access_end || '').slice(0, 10);
+      const loginId = t.login_id || t.email;
+
+      return `
+        <tr>
+          <td>
+            <b style="font-size:13.5px">${this.esc(t.company_name)}</b>
+            <div class="muted sm">👤 ${this.esc(t.contact_name)} • ${this.esc(t.email)}</div>
+          </td>
+          <td>
+            <code class="mono" style="background:var(--panel-3);padding:3px 7px;border-radius:6px;font-weight:700">${this.esc(loginId)}</code>
+          </td>
+          <td>
+            <span class="badge b-blue">${this.esc(t.plan_type)}</span>
+            <div style="margin-top:4px">${statusBadge}</div>
+          </td>
+          <td class="mono sm">
+            <b>Exp: ${this.esc(expDate)}</b>
+          </td>
+          <td>
+            <span class="badge" style="background:var(--panel-3)">🎯 ${Number(t.lead_count || 0)} Leads</span>
+            <span class="badge" style="background:var(--panel-3);margin-top:3px">👥 ${Number(t.emp_count || 0)} Team</span>
+          </td>
+          <td style="text-align:right;white-space:nowrap">
+            <div style="display:inline-flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">
+              <button class="btn btn-sm" onclick="AdminApp.extendDays('${t.id}', 7, 'trial_7d')" title="Add 7 Days">+7d</button>
+              <button class="btn btn-sm" onclick="AdminApp.extendDays('${t.id}', 30, 'monthly_30d')" title="Add 30 Days">+30d</button>
+              <button class="btn btn-sm btn-primary" onclick="AdminApp.extendDays('${t.id}', 365, 'annual_1yr')" title="Add 1 Year (365 Days)">+1 Year</button>
+              <button class="btn btn-sm" onclick="AdminApp.copyClientInvite('${this.esc(t.company_name)}', '${this.esc(loginId)}')" title="Copy Login Link">🔗 Copy Link</button>
+              ${t.status === 'active'
+                ? `<button class="btn btn-sm btn-warn" onclick="AdminApp.toggleStatus('${t.id}', 'suspended')">Suspend</button>`
+                : `<button class="btn btn-sm btn-success" onclick="AdminApp.toggleStatus('${t.id}', 'active')">Activate</button>`
+              }
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  async provisionClient(e) {
+    e.preventDefault();
+    const payload = {
+      companyName: document.getElementById('p_comp').value.trim(),
+      contactName: document.getElementById('p_name').value.trim(),
+      email: document.getElementById('p_email').value.trim(),
+      phone: document.getElementById('p_phone').value.trim(),
+      username: document.getElementById('p_user').value.trim(),
+      password: document.getElementById('p_pass').value.trim(),
+      planType: document.getElementById('p_plan').value,
+      accessDays: Number(document.getElementById('p_days').value || 365),
+      maxUsers: 50
+    };
+
+    try {
+      await this.api('/api/master/provision-client', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      this.toast(`✓ Provisioned ${payload.companyName}!`);
+      e.target.reset();
+      document.getElementById('p_pass').value = 'admin123';
+      document.getElementById('p_days').value = '365';
+      await this.loadTenants();
+    } catch (err) {
+      alert('Provision Error: ' + err.message);
+    }
+  },
+
+  async extendDays(tenantId, addDays, planType) {
+    try {
+      await this.api('/api/master/update-access', {
+        method: 'POST',
+        body: JSON.stringify({ tenantId, addDays, planType, status: 'active' })
+      });
+      this.toast(`✓ Extended access by +${addDays} days!`);
+      await this.loadTenants();
+    } catch (err) {
+      alert(err.message);
+    }
+  },
+
+  async toggleStatus(tenantId, nextStatus) {
+    try {
+      await this.api('/api/master/update-access', {
+        method: 'POST',
+        body: JSON.stringify({ tenantId, addDays: 0, status: nextStatus })
+      });
+      this.toast(`✓ Workspace status set to ${nextStatus}`);
+      await this.loadTenants();
+    } catch (err) {
+      alert(err.message);
+    }
+  },
+
+  copyClientInvite(companyName, loginId) {
+    const link = `${window.location.origin}/?invite_u=${encodeURIComponent(loginId)}`;
+    const text = `Welcome to Gantavya CRM (${companyName})!\n\n🔗 Login Portal: ${link}\n👤 User ID: ${loginId}`;
+    navigator.clipboard.writeText(text);
+    this.toast('✓ Client Login Link Copied to Clipboard!');
+  },
+
+  async downloadDatabaseBackup() {
+    try {
+      const res = await fetch('/api/master/backup-db', {
+        headers: { 'x-master-secret': this.secretKey }
+      });
+      if (!res.ok) throw new Error('Backup failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gantavya_crm_backup_${new Date().toISOString().slice(0, 10)}.sqlite`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      this.toast('💾 SQLite Database Backup Downloaded!');
+    } catch (e) {
+      alert('Backup Error: ' + e.message);
+    }
+  }
+};
+
+window.addEventListener('DOMContentLoaded', () => AdminApp.init());
 </script>
 </body>
 </html>

@@ -90,6 +90,30 @@ app.get('/', (req, res) => {
   if (fs.existsSync(pubIndex)) return res.sendFile(pubIndex);
   res.sendFile(path.join(__dirname, 'index.html'));
 });
+// ================= DIRECT /admin ROUTE FOR GANTAVYA MASTER ADMIN PORTAL =================
+app.get(['/admin', '/admin/', '/master-admin', '/master-admin.html'], (req, res) => {
+  const pubAdmin = path.join(__dirname, 'public', 'master-admin.html');
+  const rootAdmin = path.join(__dirname, 'master-admin.html');
+  if (fs.existsSync(pubAdmin)) return res.sendFile(pubAdmin);
+  if (fs.existsSync(rootAdmin)) return res.sendFile(rootAdmin);
+  res.status(404).send('master-admin.html file not found. Please save it in public/master-admin.html');
+});
+
+// Master Admin Database Backup Download Endpoint
+app.get('/api/master/backup-db', masterAdminMiddleware, (req, res) => {
+  if (!sqlDb) return res.status(500).json({ error: 'Database not initialized' });
+  const buf = Buffer.from(sqlDb.export());
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="gantavya_crm_backup_${new Date().toISOString().slice(0, 10)}.sqlite"`);
+  res.send(buf);
+});
+
+// Master Admin Delete Workspace Endpoint
+app.delete('/api/master/tenants/:id', masterAdminMiddleware, (req, res) => {
+  const tId = req.params.id;
+  runSql('DELETE FROM tenants WHERE id = ?', [tId], false);
+  res.json({ success: true });
+});
 
 const uid = (prefix = 'id') => `${prefix}_${crypto.randomBytes(6).toString('hex')}`;
 const addDaysISO = (days, baseDate = new Date()) => {
