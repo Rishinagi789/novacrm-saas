@@ -77,16 +77,7 @@ let isSavingToCloud = false;
 
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || '');
-    const safeBase = path.basename(file.originalname || 'file', ext).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
-    cb(null, `${Date.now()}_${safeBase}${ext}`);
-  }
-});
-const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({ dest: uploadDir, limits: { fileSize: 50 * 1024 * 1024 } });
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -321,7 +312,6 @@ function unifyAllWorkspaceRecords() {
     sqlDb.run(`UPDATE employees SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
     sqlDb.run(`UPDATE calendar_events SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
     sqlDb.run(`UPDATE messages SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
-    sqlDb.run(`UPDATE team_chats SET tenant_id = ? WHERE tenant_id != ?`, [primary.id, primary.id]);
   } catch (e) {}
 }
 
@@ -460,21 +450,12 @@ CREATE TABLE IF NOT EXISTS messages (
   subject TEXT DEFAULT '',
   body TEXT NOT NULL,
   sender_name TEXT DEFAULT '',
-  status TEXT DEFAULT 'Sent',
-  sent_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS team_chats (
-  id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL,
-  sender_name TEXT NOT NULL,
-  sender_role TEXT DEFAULT '',
-  recipient_name TEXT NOT NULL DEFAULT 'ALL',
-  message_text TEXT DEFAULT '',
+  sender_email TEXT DEFAULT '',
+  receiver_email TEXT DEFAULT '',
   file_url TEXT DEFAULT '',
   file_name TEXT DEFAULT '',
-  file_size TEXT DEFAULT '',
-  file_type TEXT DEFAULT '',
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  status TEXT DEFAULT 'Sent',
+  sent_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE IF NOT EXISTS subscription_payments (
   id TEXT PRIMARY KEY,
@@ -496,22 +477,6 @@ function ensureAllColumnsAndTables() {
       try { sqlDb.run(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`); } catch (e) {}
     }
   };
-
-  sqlDb.run(`
-    CREATE TABLE IF NOT EXISTS team_chats (
-      id TEXT PRIMARY KEY,
-      tenant_id TEXT NOT NULL,
-      sender_name TEXT NOT NULL,
-      sender_role TEXT DEFAULT '',
-      recipient_name TEXT NOT NULL DEFAULT 'ALL',
-      message_text TEXT DEFAULT '',
-      file_url TEXT DEFAULT '',
-      file_name TEXT DEFAULT '',
-      file_size TEXT DEFAULT '',
-      file_type TEXT DEFAULT '',
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
 
   ensureCol('tenants', 'public_share_url', "TEXT DEFAULT ''");
   ensureCol('tenants', 'smtp_email', "TEXT DEFAULT ''");
@@ -541,6 +506,10 @@ function ensureAllColumnsAndTables() {
 
   ensureCol('messages', 'lead_name', "TEXT DEFAULT ''");
   ensureCol('messages', 'sender_name', "TEXT DEFAULT ''");
+  ensureCol('messages', 'sender_email', "TEXT DEFAULT ''");
+  ensureCol('messages', 'receiver_email', "TEXT DEFAULT ''");
+  ensureCol('messages', 'file_url', "TEXT DEFAULT ''");
+  ensureCol('messages', 'file_name', "TEXT DEFAULT ''");
 
   try {
     sqlDb.run(`UPDATE leads SET sort_order = ROWID WHERE sort_order IS NULL OR sort_order = 0`);
@@ -563,10 +532,11 @@ function authMiddleware(req, res, next) {
     }
     if (!tenant) return res.status(401).json({ error: 'Workspace not found' });
 
+    const uRow = queryOne('SELECT email FROM users WHERE id = ?', [decoded.userId]);
     const msLeft = new Date(tenant.access_end).getTime() - Date.now();
     const daysLeft = Math.ceil(msLeft / 86400000);
 
-    req.user = { ...decoded, tenantId: tenant.id };
+    req.user = { ...decoded, email: decoded.email || (uRow ? uRow.email : ''), tenantId: tenant.id };
     req.tenant = { ...tenant, daysLeft };
     next();
   } catch (e) {
@@ -705,7 +675,7 @@ app.post('/api/auth/login', (req, res) => {
   }
 
   const tenant = getPrimaryWorkspace() || queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
-  const token = jwt.sign({ userId: user.id, tenantId: tenant.id, role: user.role, name: user.full_name }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ userId: user.id, tenantId: tenant.id, role: user.role, name: user.full_name, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
 
   res.json({ token, user: { id: user.id, name: user.full_name, email: user.email, role: user.role }, tenant });
 });
@@ -754,7 +724,7 @@ app.post('/api/auth/google-or-signup', (req, res) => {
   }
 
   const tenant = primaryTenant || queryOne('SELECT * FROM tenants WHERE id = ?', [user.tenant_id]);
-  const token = jwt.sign({ userId: user.id, tenantId: tenant.id, role: user.role, name: user.full_name }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ userId: user.id, tenantId: tenant.id, role: user.role, name: user.full_name, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
 
   res.json({ token, user: { id: user.id, name: user.full_name, email: user.email, role: user.role }, tenant, requirePayment: planChoice === 'annual_1yr' });
 });
@@ -1200,72 +1170,29 @@ app.delete('/api/calendar/:id', authMiddleware, (req, res) => {
   res.json({ success: true, version: currentDbVersion });
 });
 
-// ================= WHATSAPP-STYLE TEAM MESSENGER & FILE SHARING API =================
-app.get('/api/team-chat', authMiddleware, (req, res) => {
-  const chats = queryAll(`
-    SELECT * FROM team_chats
-    WHERE tenant_id = ?
-    ORDER BY created_at ASC, ROWID ASC
-    LIMIT 500
-  `, [req.tenant.id]);
-  res.json({ chats, version: currentDbVersion });
-});
-
-app.post('/api/team-chat', authMiddleware, upload.single('file'), (req, res) => {
-  const message_text = String(req.body.message_text || '').trim();
-  const recipient_name = String(req.body.recipient_name || 'ALL').trim();
-
-  if (!message_text && !req.file) {
-    return res.status(400).json({ error: 'Type a message or attach a file' });
-  }
-
-  let file_url = '';
-  let file_name = '';
-  let file_size = '';
-  let file_type = '';
-
-  if (req.file) {
-    file_url = `/uploads/${req.file.filename}`;
-    file_name = req.file.originalname;
-    file_size = Math.max(1, Math.round(req.file.size / 1024)) + ' KB';
-    file_type = req.file.mimetype || 'application/octet-stream';
-  }
-
-  const id = uid('chat');
-  const now = new Date().toISOString();
-
-  runSql(`
-    INSERT INTO team_chats (
-      id, tenant_id, sender_name, sender_role, recipient_name,
-      message_text, file_url, file_name, file_size, file_type, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [
-    id, req.tenant.id, req.user.name, req.user.role || 'member',
-    recipient_name, message_text, file_url, file_name, file_size, file_type, now
-  ]);
-
-  const newChat = queryOne('SELECT * FROM team_chats WHERE id = ?', [id]);
-  res.json({ success: true, chat: newChat, version: currentDbVersion });
-});
-
-app.delete('/api/team-chat/:id', authMiddleware, (req, res) => {
-  runSql('DELETE FROM team_chats WHERE id = ?', [req.params.id]);
-  res.json({ success: true, version: currentDbVersion });
-});
-
-// Legacy Email/Invite SMTP Log Endpoint (Used by Team Invite Email Sender)
+// ================= MESSAGES API (TEAM CHAT + DIRECT INDIVIDUAL CHAT + FILE SHARING + EMAIL INVITES) =================
 app.get('/api/messages', authMiddleware, (req, res) => {
-  const messages = queryAll('SELECT * FROM messages WHERE tenant_id = ? ORDER BY sent_at DESC LIMIT 100', [req.tenant.id]);
+  const messages = queryAll('SELECT * FROM messages WHERE tenant_id = ? ORDER BY sent_at ASC LIMIT 300', [req.tenant.id]);
   res.json({ messages });
 });
 
-app.post('/api/messages', authMiddleware, async (req, res) => {
-  const { lead_name, recipient, channel, subject, body } = req.body;
-  if (!recipient || !body) return res.status(400).json({ error: 'Recipient and message body required' });
+app.post('/api/messages', authMiddleware, upload.single('file'), async (req, res) => {
+  const { lead_name, recipient, receiver_email, channel, subject, body } = req.body || {};
+  const file = req.file;
+
+  if (!body && !file) {
+    return res.status(400).json({ error: 'Message text or file attachment is required' });
+  }
+
   const id = uid('msg');
+  const fileUrl = file ? `/uploads/${file.filename}` : '';
+  const fileName = file ? file.originalname : '';
+  const activeChannel = channel || 'Team Chat';
+  const activeRecipient = recipient || 'General Team';
+  const msgBody = body ? String(body).trim() : `Shared file: ${fileName}`;
 
   let emailSentViaSmtp = false;
-  if (channel === 'Email' && nodemailer && (req.tenant.smtp_email || process.env.SMTP_USER)) {
+  if (activeChannel === 'Email' && nodemailer && (req.tenant.smtp_email || process.env.SMTP_USER)) {
     try {
       const transporter = nodemailer.createTransport({
         service: 'gmail',
@@ -1276,9 +1203,9 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
       });
       await transporter.sendMail({
         from: `"${req.tenant.company_name}" <${req.tenant.smtp_email || process.env.SMTP_USER}>`,
-        to: recipient,
+        to: activeRecipient,
         subject: subject || `Invitation / Update from ${req.tenant.company_name}`,
-        text: body
+        text: msgBody
       });
       emailSentViaSmtp = true;
     } catch (e) {
@@ -1287,11 +1214,28 @@ app.post('/api/messages', authMiddleware, async (req, res) => {
   }
 
   runSql(`
-    INSERT INTO messages (id, tenant_id, lead_name, recipient, channel, subject, body, sender_name, status, sent_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, req.tenant.id, lead_name || '', recipient, channel || 'WhatsApp', subject || '', body, req.user.name, emailSentViaSmtp ? 'Sent via SMTP' : 'Logged', new Date().toISOString()]);
+    INSERT INTO messages (
+      id, tenant_id, lead_name, recipient, channel, subject, body,
+      sender_name, sender_email, receiver_email, file_url, file_name, status, sent_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [
+    id,
+    req.tenant.id,
+    lead_name || '',
+    activeRecipient,
+    activeChannel,
+    subject || '',
+    msgBody,
+    req.user.name,
+    (req.user.email || req.user.name || '').toLowerCase(),
+    (receiver_email || '').toLowerCase(),
+    fileUrl,
+    fileName,
+    emailSentViaSmtp ? 'Sent via SMTP' : 'Sent',
+    new Date().toISOString()
+  ]);
 
-  res.json({ success: true, id, emailSentViaSmtp, version: currentDbVersion });
+  res.json({ success: true, id, emailSentViaSmtp, fileUrl, fileName, version: currentDbVersion });
 });
 
 app.get('/api/team', authMiddleware, (req, res) => {
@@ -1450,6 +1394,7 @@ app.post('/api/subscriptions/upgrade-1yr', authMiddleware, (req, res) => {
   res.json({ success: true, validUntil });
 });
 
+// JSON 404 Handler for any unknown /api/* route so frontend never gets HTML parse errors
 app.use('/api', (req, res) => {
   res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl}` });
 });
